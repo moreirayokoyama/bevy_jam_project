@@ -4,9 +4,8 @@
 // Feel free to delete this line.
 #![allow(clippy::too_many_arguments, clippy::type_complexity)]
 
-//TODO: Carregar mais chunks (o suficiente pra preencher todo o canvas + 2)
-//TODO: Despawn dos chunks mais distantes
 //TODO: receber algum input e usá-lo pra forçar um offset dos chunks
+//TODO: Despawn dos chunks mais distantes
 //TODO: Ponderar sobre tamanho do bloco, tamanho do chunk, tamanho do mundo
 
 mod utils;
@@ -22,18 +21,28 @@ use map::MapPlugin;
 pub const PIXEL_PERFECT_LAYERS: RenderLayers = RenderLayers::layer(0);
 pub const HIGH_RES_LAYERS: RenderLayers = RenderLayers::layer(1);
 
-pub const RES_WIDTH: usize = 768;
-pub const RES_HEIGHT: usize = 432;
+pub const CANVAS_WIDTH: usize = 768;
+pub const CANVAS_HEIGHT: usize = 432;
 //const RES_WIDTH_OFFSET: usize = -(RES_WIDTH / 2);
-pub const RES_HEIGHT_OFFSET: i32 = -((RES_HEIGHT as i32) / 2);
+pub const RES_HEIGHT_OFFSET: i32 = -((CANVAS_HEIGHT as i32) / 2);
 
 pub const BLOCK_SIZE: usize = 16;
 
-pub const BLOCK_X_COUNT: usize = RES_WIDTH / BLOCK_SIZE;
-pub const BLOCK_Y_COUNT: usize = RES_HEIGHT / BLOCK_SIZE;
+pub const BLOCK_X_COUNT: usize = CANVAS_WIDTH / BLOCK_SIZE;
+pub const BLOCK_Y_COUNT: usize = CANVAS_HEIGHT / BLOCK_SIZE;
 
 pub const FLOOR_MEDIAN: f64 = (BLOCK_Y_COUNT as f64) * 0.5;
 pub const FLOOR_THRESHOLD: f64 = FLOOR_MEDIAN * 0.5;
+
+pub const WORLD_WIDTH: usize = 1920;
+
+pub const CHUNK_WIDTH: usize = 16;
+pub const CHUNK_COUNT: usize = WORLD_WIDTH / CHUNK_WIDTH;
+pub const CHUNK_INITIAL_OFFSET: usize = CHUNK_COUNT / 2;
+
+pub const CHUNKS_IN_CANVAS: usize = CANVAS_WIDTH / (CHUNK_WIDTH * BLOCK_SIZE);
+pub const CHUNKS_LOAD_THRESHOLD: usize = 2;
+pub const CHUNKS_TO_LOAD: usize = CHUNKS_IN_CANVAS + CHUNKS_LOAD_THRESHOLD;
 
 fn main() {
     App::new()

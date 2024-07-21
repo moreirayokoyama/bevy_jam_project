@@ -1,10 +1,13 @@
 use bevy::{app::{Plugin, Startup}, color::Color, hierarchy::BuildChildren, math::{Vec2, Vec3}, prelude::{default, Commands, IntoSystemConfigs, Res, Resource, SpatialBundle}, sprite::{Sprite, SpriteBundle}, transform::components::Transform};
 use noise::{core::perlin::perlin_2d, permutationtable::PermutationTable, utils::{NoiseMap, PlaneMapBuilder}};
 
-use crate::{utils, BLOCK_SIZE, BLOCK_Y_COUNT, FLOOR_MEDIAN, FLOOR_THRESHOLD, PIXEL_PERFECT_LAYERS, RES_HEIGHT_OFFSET};
+use crate::{utils, BLOCK_SIZE, BLOCK_Y_COUNT, CHUNKS_TO_LOAD, CHUNK_INITIAL_OFFSET, CHUNK_WIDTH, FLOOR_MEDIAN, FLOOR_THRESHOLD, PIXEL_PERFECT_LAYERS, RES_HEIGHT_OFFSET};
 
 #[derive(Resource)]
 struct GameWorld(NoiseMap);
+
+#[derive(Resource)]
+struct CurrentChunkOffset(usize);
 
 #[derive(PartialEq)]
 enum Block {
@@ -24,44 +27,49 @@ impl Plugin for MapPlugin {
 
 fn initialize(mut commands: Commands) {
     commands.insert_resource(GameWorld(generate_noise_map()));
+    commands.insert_resource(CurrentChunkOffset(CHUNK_INITIAL_OFFSET));
 }
 
-fn startup(mut commands: Commands, game_world: Res<GameWorld>) {
+fn startup(mut commands: Commands, game_world: Res<GameWorld>, current_chunk_offset: Res<CurrentChunkOffset>) {
+    for i in -(CHUNKS_TO_LOAD as i32/2)..(CHUNKS_TO_LOAD as i32/2) {
+        let start_x = CHUNK_WIDTH * ((current_chunk_offset.0 as i32) + i) as usize;
+        let start_y: usize = 0;
 
-    let chunk: usize = 60;
-    let start_x = chunk * 16;
-    let start_y: usize = 0;
+        let canvas_x: f32 = (i * (CHUNK_WIDTH * BLOCK_SIZE) as i32) as f32;
+        println!("{:?}", canvas_x);
 
-    //criação de um chunk
-    let _ = commands.spawn(
-        SpatialBundle{
-            transform: Transform::from_xyz(0., RES_HEIGHT_OFFSET as f32, 2.),
-            ..default()
-        }
-    ).with_children(|parent| {
-        for col_x in 0..16 {
-            for col_y in 0..BLOCK_Y_COUNT {
-                let x = start_x + col_x;
-                let y = start_y + col_y;
-                
-                if get_block(x, y, &game_world.0) == Block::Solid {
-                    parent.spawn(
-                        (SpriteBundle {
-                            sprite: Sprite {
-                                color: Color::WHITE,
-                                custom_size: Some(Vec2::new(BLOCK_SIZE as f32, BLOCK_SIZE as f32)),
+    
+        //criação de um chunk
+        commands.spawn(
+            SpatialBundle{
+                transform: Transform::from_xyz(canvas_x, RES_HEIGHT_OFFSET as f32, 2.),
+                ..default()
+            }
+        ).with_children(|parent| {
+            for col_x in 0..CHUNK_WIDTH {
+                for col_y in 0..BLOCK_Y_COUNT {
+                    let x = start_x + col_x;
+                    let y = start_y + col_y;
+                    
+                    if get_block(x, y, &game_world.0) == Block::Solid {
+                        parent.spawn(
+                            (SpriteBundle {
+                                sprite: Sprite {
+                                    color: Color::WHITE,
+                                    custom_size: Some(Vec2::new(BLOCK_SIZE as f32, BLOCK_SIZE as f32)),
+                                    ..default()
+                                },
+                                transform: Transform::from_translation(Vec3::new((col_x * BLOCK_SIZE) as f32, (col_y * BLOCK_SIZE) as f32, 2.)),
                                 ..default()
-                            },
-                            transform: Transform::from_translation(Vec3::new((col_x * BLOCK_SIZE) as f32, (col_y * BLOCK_SIZE) as f32, 2.)),
-                            ..default()
-                        }, 
-                        PIXEL_PERFECT_LAYERS,
-                    )
-                    );
+                            }, 
+                            PIXEL_PERFECT_LAYERS,
+                        )
+                        );
+                    }
                 }
             }
-        }
-    }).id();
+        });
+    }
 
     commands.spawn((SpriteBundle {
         sprite: Sprite {
@@ -92,8 +100,8 @@ fn generate_noise_map() -> NoiseMap {
     let hasher = PermutationTable::new(0);
     let r = PlaneMapBuilder::new_fn(|point| perlin_2d(point.into(), &hasher))
             .set_size(1920, 1)
-            .set_x_bounds(-64., 64.)
-            .set_y_bounds(-64., 64.)
+            .set_x_bounds(-32., 32.)
+            .set_y_bounds(-32., 32.)
             .build();
     
     utils::write_example_to_file(&r, "world.png");

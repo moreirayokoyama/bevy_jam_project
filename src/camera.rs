@@ -1,6 +1,6 @@
 use bevy::{app::{Plugin, Startup, Update}, asset::Assets, prelude::{default, Camera2dBundle, Commands, Component, EventReader, Query, ResMut, With}, render::{camera::{Camera, OrthographicProjection, RenderTarget}, render_resource::{Extent3d, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages}, texture::Image}, sprite::SpriteBundle, window::WindowResized};
 
-use crate::{HIGH_RES_LAYERS, PIXEL_PERFECT_LAYERS, RES_HEIGHT, RES_WIDTH};
+use crate::{HIGH_RES_LAYERS, PIXEL_PERFECT_LAYERS, CANVAS_HEIGHT, CANVAS_WIDTH};
 
 #[derive(Component)]
 struct OuterCamera;
@@ -21,8 +21,8 @@ impl Plugin for CameraPlugin {
 
 fn startup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
     let canvas_size = Extent3d {
-        width: RES_WIDTH as u32,
-        height: RES_HEIGHT as u32,
+        width: CANVAS_WIDTH as u32,
+        height: CANVAS_HEIGHT as u32,
         ..default()
     };
 
@@ -82,8 +82,8 @@ fn fit_canvas(
     mut projections: Query<&mut OrthographicProjection, With<OuterCamera>>,
 ) {
     for event in resize_events.read() {
-        let h_scale = event.width / RES_WIDTH as f32;
-        let v_scale = event.height / RES_HEIGHT as f32;
+        let h_scale = event.width / CANVAS_WIDTH as f32;
+        let v_scale = event.height / CANVAS_HEIGHT as f32;
         let mut projection = projections.single_mut();
         projection.scale = 1. / h_scale.min(v_scale).round();
     }
