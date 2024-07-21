@@ -8,14 +8,16 @@
 //TODO: Despawn dos chunks mais distantes
 //TODO: Ponderar sobre tamanho do bloco, tamanho do chunk, tamanho do mundo
 
-mod utils;
 mod camera;
 mod map;
+mod utils;
+mod control;
 
 use bevy::asset::AssetMetaCheck;
 use bevy::prelude::*;
 use bevy::render::view::RenderLayers;
 use camera::CameraPlugin;
+use control::ControlPlugin;
 use map::MapPlugin;
 
 pub const PIXEL_PERFECT_LAYERS: RenderLayers = RenderLayers::layer(0);
@@ -44,15 +46,21 @@ pub const CHUNKS_IN_CANVAS: usize = CANVAS_WIDTH / (CHUNK_WIDTH * BLOCK_SIZE);
 pub const CHUNKS_LOAD_THRESHOLD: usize = 2;
 pub const CHUNKS_TO_LOAD: usize = CHUNKS_IN_CANVAS + CHUNKS_LOAD_THRESHOLD;
 
+pub const MOVEMENT_SPEED: usize = BLOCK_SIZE * 16;
+
 fn main() {
     App::new()
-        .add_plugins((DefaultPlugins.set(AssetPlugin {
-            // Wasm builds will check for meta files (that don't exist) if this isn't set.
-            // This causes errors and even panics in web builds on itch.
-            // See https://github.com/bevyengine/bevy_github_ci_template/issues/48.
-            meta_check: AssetMetaCheck::Never,
-            ..default()
-        }), CameraPlugin, MapPlugin))
+        .add_plugins((
+            DefaultPlugins.set(AssetPlugin {
+                // Wasm builds will check for meta files (that don't exist) if this isn't set.
+                // This causes errors and even panics in web builds on itch.
+                // See https://github.com/bevyengine/bevy_github_ci_template/issues/48.
+                meta_check: AssetMetaCheck::Never,
+                ..default()
+            }),
+            CameraPlugin,
+            MapPlugin,
+            ControlPlugin,
+        ))
         .run();
 }
-

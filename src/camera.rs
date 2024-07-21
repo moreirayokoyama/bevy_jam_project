@@ -1,6 +1,19 @@
-use bevy::{app::{Plugin, Startup, Update}, asset::Assets, prelude::{default, Camera2dBundle, Commands, Component, EventReader, Query, ResMut, With}, render::{camera::{Camera, OrthographicProjection, RenderTarget}, render_resource::{Extent3d, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages}, texture::Image}, sprite::SpriteBundle, window::WindowResized};
+use bevy::{
+    app::{Plugin, Startup, Update},
+    asset::Assets,
+    prelude::{default, Camera2dBundle, Commands, Component, EventReader, Query, ResMut, With},
+    render::{
+        camera::{Camera, OrthographicProjection, RenderTarget},
+        render_resource::{
+            Extent3d, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages,
+        },
+        texture::Image,
+    },
+    sprite::SpriteBundle,
+    window::WindowResized,
+};
 
-use crate::{HIGH_RES_LAYERS, PIXEL_PERFECT_LAYERS, CANVAS_HEIGHT, CANVAS_WIDTH};
+use crate::{CANVAS_HEIGHT, CANVAS_WIDTH, HIGH_RES_LAYERS, PIXEL_PERFECT_LAYERS};
 
 #[derive(Component)]
 struct OuterCamera;
@@ -12,10 +25,8 @@ pub struct CameraPlugin;
 
 impl Plugin for CameraPlugin {
     fn build(&self, app: &mut bevy::prelude::App) {
-        app
-            .add_systems(Startup, startup)
-            .add_systems(Update, fit_canvas)
-            ;
+        app.add_systems(Startup, startup)
+            .add_systems(Update, fit_canvas);
     }
 }
 
@@ -74,7 +85,6 @@ fn startup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
     // the "outer" camera renders whatever is on `HIGH_RES_LAYERS` to the screen.
     // here, the canvas and one of the sample sprites will be rendered by this camera
     commands.spawn((Camera2dBundle::default(), OuterCamera, HIGH_RES_LAYERS));
-
 }
 
 fn fit_canvas(
@@ -88,4 +98,3 @@ fn fit_canvas(
         projection.scale = 1. / h_scale.min(v_scale).round();
     }
 }
-
