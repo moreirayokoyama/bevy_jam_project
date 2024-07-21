@@ -4,20 +4,37 @@
 // Feel free to delete this line.
 #![allow(clippy::too_many_arguments, clippy::type_complexity)]
 
+mod utils;
+
 use bevy::asset::AssetMetaCheck;
 use bevy::prelude::*;
 use bevy::render::camera::RenderTarget;
 use bevy::render::render_resource::{Extent3d, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages};
 use bevy::render::view::RenderLayers;
+use bevy::scene::ron::de;
 use bevy::sprite::MaterialMesh2dBundle;
 use bevy::window::WindowResized;
-use noise::{NoiseFn, Perlin, Seedable};
+use noise::core::perlin::{perlin_2d, perlin_3d};
+use noise::permutationtable::PermutationTable;
+use noise::utils::{NoiseMap, NoiseMapBuilder, PlaneMapBuilder};
+use noise::{BasicMulti, NoiseFn, Perlin};
+use rand::{thread_rng, Rng};
 
 const PIXEL_PERFECT_LAYERS: RenderLayers = RenderLayers::layer(0);
 const HIGH_RES_LAYERS: RenderLayers = RenderLayers::layer(1);
 
-const RES_WIDTH: u32 = 768;
-const RES_HEIGHT: u32 = 432;
+const RES_WIDTH: usize = 768;
+const RES_HEIGHT: usize = 432;
+//const RES_WIDTH_OFFSET: usize = -(RES_WIDTH / 2);
+const RES_HEIGHT_OFFSET: i32 = -((RES_HEIGHT as i32) / 2);
+
+const BLOCK_SIZE: usize = 4;
+
+const BLOCK_X_COUNT: usize = RES_WIDTH / BLOCK_SIZE;
+const BLOCK_Y_COUNT: usize = RES_HEIGHT / BLOCK_SIZE;
+
+const FLOOR_MEDIAN: f64 = (BLOCK_Y_COUNT as f64) * 0.5;
+const FLOOR_THRESHOLD: f64 = FLOOR_MEDIAN * 0.5;
 
 #[derive(Component)]
 struct OuterCamera;
@@ -31,6 +48,9 @@ enum Block {
     Solid,
 }
 
+#[derive(Resource)]
+struct GameWorld(NoiseMap);
+
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins.set(AssetPlugin {
@@ -40,15 +60,18 @@ fn main() {
             meta_check: AssetMetaCheck::Never,
             ..default()
         }))
-        .add_systems(Startup, (setup, setup_block))
+        .add_systems(Startup, (setup, setup_block).chain())
         .add_systems(Update, fit_canvas)
         .run();
 }
 
-fn setup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
+fn setup(mut commands: Commands, mut images: ResMut<Assets<Image>>, assets_server: Res<AssetServer>) {
+    let m: Handle<Image> = assets_server.load("download.png");
+    commands.insert_resource(GameWorld(generate_noise_map()));
+
     let canvas_size = Extent3d {
-        width: RES_WIDTH,
-        height: RES_HEIGHT,
+        width: RES_WIDTH as u32,
+        height: RES_HEIGHT as u32,
         ..default()
     };
 
@@ -107,27 +130,61 @@ fn setup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
 
 fn setup_block(mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<ColorMaterial>>,) {
-
-        for i in 0..RES_WIDTH / 4 {
-            for j in 0..RES_HEIGHT / 4 {
-                if get_block(i, j) == Block::Solid {
-
-                    commands.spawn((
-                        MaterialMesh2dBundle {
-                            mesh: meshes.add(Rectangle::default()).into(),
-                            transform: Transform::from_xyz(((i * 4) as f32) - ((RES_WIDTH / 2) as f32), ((j * 4) as f32) - ((RES_HEIGHT / 2) as f32), 2.).with_scale(Vec3::splat(16.)),
-                            material: materials.add(Color::WHITE),
+    mut materials: ResMut<Assets<ColorMaterial>>,
+    mut images: ResMut<Assets<Image>>,
+    mut asset_server: ResMut<AssetServer>,
+    game_world: Res<GameWorld>,
+) {
+    let chunk: usize = 60;
+    let start_x = 0 * 16;
+    let start_y: usize = 0;
+    
+    let root = commands.spawn(
+        SpatialBundle{
+            transform: Transform::from_xyz(0., RES_HEIGHT_OFFSET as f32, 2.),
+            ..default()
+        }
+    ).with_children(|parent| {
+        for col_x in 0..60 {
+            for col_y in 0..BLOCK_Y_COUNT {
+                let val = game_world.0.get_value(col_x, col_y);
+                // if val > 0.8_f64 {
+                    // debug!("Value for {}:{} = {}", col_x, col_y, val);
+                // }
+                let x = start_x + col_x;
+                let y = start_y + col_y;
+                
+                if get_block(x, y, &game_world.0) == Block::Solid {
+                    parent.spawn(
+                        (SpriteBundle {
+                            sprite: Sprite {
+                                color: Color::WHITE,
+                                custom_size: Some(Vec2::new(BLOCK_SIZE as f32, BLOCK_SIZE as f32)),
+                                ..default()
+                            },
+                            transform: Transform::from_translation(Vec3::new((col_x * BLOCK_SIZE) as f32, (col_y * BLOCK_SIZE) as f32, 2.)),
                             ..default()
-                        },
-                        //Rotate,
+                        }, 
                         PIXEL_PERFECT_LAYERS,
-                    ));
+                    )
+                    );
                 }
-            
             }
         }
+    }).id();
 
+    commands.spawn((SpriteBundle {
+        sprite: Sprite {
+            color: Color::WHITE,
+            custom_size: Some(Vec2::new(BLOCK_SIZE as f32, BLOCK_SIZE as f32)),
+            ..default()
+        },
+        transform: Transform::from_translation(Vec3::new((-4 * (BLOCK_SIZE as i32)) as f32, (4 * BLOCK_SIZE) as f32, 2.)),
+        ..default()
+    }, 
+    PIXEL_PERFECT_LAYERS,
+));
+ 
 }
 
 fn fit_canvas(
@@ -142,14 +199,29 @@ fn fit_canvas(
     }
 }
 
-fn get_block(x: u32, y: u32) -> Block {
-    let x_norm: f64 = 1./192. * x as f64;
-    let perlin = Perlin::new(2);
-    let val = 50. + perlin.get([x_norm, 0.]) * 20.;
+fn get_block(x: usize, y: usize, noise_map: &NoiseMap) -> Block {
+    //let x_norm: f64 = (1./f64::from(BLOCK_X_COUNT) * x as f64);
+    let floor = FLOOR_MEDIAN + noise_map.get_value(x as usize, 8) * FLOOR_THRESHOLD;
 
-    if (y as f64) < val {
+    if (y as f64) < floor {
         Block::Solid
     } else {
         Block::Air
     }
+}
+
+fn generate_noise_map() -> NoiseMap {
+    let mut rng = thread_rng();
+    //let seed: u32 = rng.gen::<_>();
+
+
+    let hasher = PermutationTable::new(0);
+    let r = PlaneMapBuilder::new_fn(|point| perlin_2d(point.into(), &hasher))
+            .set_size(1920, 1)
+            .set_x_bounds(-200., 200.)
+            .set_y_bounds(-200., 200.)
+            .build();
+    
+    utils::write_example_to_file(&r, "world.png");
+    r
 }
