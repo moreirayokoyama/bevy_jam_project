@@ -28,7 +28,7 @@ const RES_HEIGHT: usize = 432;
 //const RES_WIDTH_OFFSET: usize = -(RES_WIDTH / 2);
 const RES_HEIGHT_OFFSET: i32 = -((RES_HEIGHT as i32) / 2);
 
-const BLOCK_SIZE: usize = 4;
+const BLOCK_SIZE: usize = 16;
 
 const BLOCK_X_COUNT: usize = RES_WIDTH / BLOCK_SIZE;
 const BLOCK_Y_COUNT: usize = RES_HEIGHT / BLOCK_SIZE;
@@ -136,16 +136,22 @@ fn setup_block(mut commands: Commands,
     game_world: Res<GameWorld>,
 ) {
     let chunk: usize = 60;
-    let start_x = 0 * 16;
+    let start_x = chunk * 16;
     let start_y: usize = 0;
     
+//TODO: Carregar mais chunks (o suficiente pra preencher todo o canvas + 2)
+//TODO: Despawn dos chunks mais distantes
+//TODO: receber algum input e usá-lo pra forçar um offset dos chunks
+
+
+    //criação de um chunk
     let root = commands.spawn(
         SpatialBundle{
             transform: Transform::from_xyz(0., RES_HEIGHT_OFFSET as f32, 2.),
             ..default()
         }
     ).with_children(|parent| {
-        for col_x in 0..60 {
+        for col_x in 0..16 {
             for col_y in 0..BLOCK_Y_COUNT {
                 let val = game_world.0.get_value(col_x, col_y);
                 // if val > 0.8_f64 {
@@ -201,7 +207,7 @@ fn fit_canvas(
 
 fn get_block(x: usize, y: usize, noise_map: &NoiseMap) -> Block {
     //let x_norm: f64 = (1./f64::from(BLOCK_X_COUNT) * x as f64);
-    let floor = FLOOR_MEDIAN + noise_map.get_value(x as usize, 8) * FLOOR_THRESHOLD;
+    let floor = FLOOR_MEDIAN + noise_map.get_value(x as usize, 0) * FLOOR_THRESHOLD;
 
     if (y as f64) < floor {
         Block::Solid
@@ -218,8 +224,8 @@ fn generate_noise_map() -> NoiseMap {
     let hasher = PermutationTable::new(0);
     let r = PlaneMapBuilder::new_fn(|point| perlin_2d(point.into(), &hasher))
             .set_size(1920, 1)
-            .set_x_bounds(-200., 200.)
-            .set_y_bounds(-200., 200.)
+            .set_x_bounds(-5., 5.)
+            .set_y_bounds(-5., 5.)
             .build();
     
     utils::write_example_to_file(&r, "world.png");
