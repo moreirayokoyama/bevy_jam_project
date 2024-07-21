@@ -26,15 +26,13 @@ pub const CANVAS_HEIGHT: usize = 432;
 //const RES_WIDTH_OFFSET: usize = -(RES_WIDTH / 2);
 pub const RES_HEIGHT_OFFSET: i32 = -((CANVAS_HEIGHT as i32) / 2);
 
-pub const BLOCK_SIZE: usize = 16;
+pub const BLOCK_SIZE: usize = 8;
 
 pub const BLOCK_X_COUNT: usize = CANVAS_WIDTH / BLOCK_SIZE;
 pub const BLOCK_Y_COUNT: usize = CANVAS_HEIGHT / BLOCK_SIZE;
 
 pub const FLOOR_MEDIAN: f64 = (BLOCK_Y_COUNT as f64) * 0.5;
 pub const FLOOR_THRESHOLD: f64 = FLOOR_MEDIAN * 0.5;
-
-pub const WORLD_WIDTH: usize = 1920;
 
 pub const CHUNK_WIDTH: usize = 16;
 pub const CHUNK_COUNT: usize = WORLD_WIDTH / CHUNK_WIDTH;
@@ -45,6 +43,9 @@ pub const CHUNKS_LOAD_THRESHOLD: usize = 2;
 pub const CHUNKS_TO_LOAD: usize = CHUNKS_IN_CANVAS + CHUNKS_LOAD_THRESHOLD;
 
 pub const MOVEMENT_SPEED: usize = BLOCK_SIZE * 16;
+
+pub const DAY_DURATION_IN_SECONDS: usize = 4 * 60;
+pub const WORLD_WIDTH: usize = DAY_DURATION_IN_SECONDS * MOVEMENT_SPEED;
 
 fn main() {
     App::new()
