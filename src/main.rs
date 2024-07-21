@@ -4,8 +4,6 @@
 // Feel free to delete this line.
 #![allow(clippy::too_many_arguments, clippy::type_complexity)]
 
-//TODO: receber algum input e usá-lo pra forçar um offset dos chunks
-//TODO: Despawn dos chunks mais distantes
 //TODO: Ponderar sobre tamanho do bloco, tamanho do chunk, tamanho do mundo
 
 mod camera;
