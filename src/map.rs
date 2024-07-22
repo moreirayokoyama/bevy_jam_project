@@ -1,23 +1,12 @@
 use bevy::{
     app::{Plugin, Startup, Update}, asset::AssetServer, color::Color, hierarchy::{BuildChildren, DespawnRecursiveExt}, math::{Vec2, Vec3}, prelude::{default, Commands, Component, Entity, IntoSystemConfigs, Query, Res, Resource, SpatialBundle}, sprite::{Sprite, SpriteBundle}, transform::components::Transform
 };
-use noise::{
-    core::perlin::perlin_2d,
-    permutationtable::PermutationTable,
-    utils::{NoiseMap, PlaneMapBuilder},
-};
 
 use crate::{
-    control::CurrentControlOffset, utils, BLOCK_SIZE, CHUNKS_TO_LOAD, CHUNK_COUNT, CHUNK_INITIAL_OFFSET, CHUNK_WIDTH, FLOOR_MEDIAN, FLOOR_THRESHOLD, PIXEL_PERFECT_LAYERS, WORLD_BOTTOM_OFFSET, WORLD_HEIGHT, WORLD_WIDTH
+    control::CurrentControlOffset, utils, GameWorld, BLOCK_SIZE, CHUNKS_TO_LOAD, CHUNK_COUNT, CHUNK_INITIAL_OFFSET, CHUNK_WIDTH, FLOOR_MEDIAN, FLOOR_THRESHOLD, PIXEL_PERFECT_LAYERS, WORLD_BOTTOM_OFFSET, WORLD_HEIGHT, WORLD_WIDTH
 };
 
 const MAX_OFFSET: f32 = ((CHUNKS_TO_LOAD * CHUNK_WIDTH * BLOCK_SIZE)/2) as f32;
-
-#[derive(Resource)]
-struct GameWorld {
-    noise_map: NoiseMap,
-    surface_height: Vec<f64>,
-}
 
 #[derive(Resource)]
 struct CurrentChunkOffset(usize);
@@ -28,6 +17,9 @@ struct Chunk {
     x_offset: f32,
     y_offset: f32,
 }
+
+#[derive(Component)]
+pub struct Collider;
 
 #[derive(PartialEq)]
 enum Block {
@@ -54,13 +46,6 @@ impl Plugin for MapPlugin {
 }
 
 fn initialize(mut commands: Commands) {
-    let noise_map = generate_noise_map();
-    let surface_height = generate_surface_height_vec(&noise_map);
-
-    commands.insert_resource(GameWorld {
-        noise_map,
-        surface_height,
-    });
     commands.insert_resource(CurrentChunkOffset(CHUNK_INITIAL_OFFSET));
 }
 
@@ -179,10 +164,6 @@ fn map_movement(mut query: Query<(Entity, &mut Transform, &mut Chunk)>, control_
             let start_x = CHUNK_WIDTH * chunk_index;
             let start_y: usize = 0;
 
-// 8 = 0 .. 7
-// 8 = 0
-// -1
-
             commands
             .spawn((SpatialBundle {
                 transform: Transform::from_xyz(new_chunk_offset, chunk.y_offset, 2.),
@@ -202,7 +183,7 @@ fn map_movement(mut query: Query<(Entity, &mut Transform, &mut Chunk)>, control_
                             Block::Air => {},
                             Block::Solid(SolidBlock::Earth) => { parent.spawn((new_earth_block(col_x, col_y), PIXEL_PERFECT_LAYERS)); },
                             Block::Solid(SolidBlock::Stone) => { parent.spawn((new_stone_block(col_x, col_y), PIXEL_PERFECT_LAYERS)); },
-                            Block::Solid(SolidBlock::Surface) => { parent.spawn((new_surface_block(col_x, col_y), PIXEL_PERFECT_LAYERS)); },
+                            Block::Solid(SolidBlock::Surface) => { parent.spawn((new_surface_block(col_x, col_y), Collider, PIXEL_PERFECT_LAYERS)); },
                         }
                     }
                 }
@@ -222,24 +203,4 @@ fn get_block(x: usize, y: usize, game_world: &GameWorld) -> Block {
     } else {
         Block::Air
     }
-}
-
-fn generate_noise_map() -> NoiseMap {
-    let hasher = PermutationTable::new(0);
-    let r = PlaneMapBuilder::new_fn(|point| perlin_2d(point.into(), &hasher))
-        .set_size(WORLD_WIDTH, 1)
-        .set_x_bounds(-200., 200.)
-        .set_y_bounds(-200., 200.)
-        .build();
-
-    utils::write_example_to_file(&r, "world.png");
-    r
-}
-
-fn generate_surface_height_vec(noise_map: &NoiseMap) -> Vec<f64> {
-    let mut v = Vec::<f64>::with_capacity(WORLD_WIDTH);
-    for x in 0..WORLD_WIDTH {
-        v.push(FLOOR_MEDIAN + noise_map.get_value(x as usize, 0) * FLOOR_THRESHOLD);
-    }
-    v
 }
