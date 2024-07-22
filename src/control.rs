@@ -1,4 +1,4 @@
-use bevy::{app::{Plugin, Startup, Update}, input::ButtonInput, prelude::{Commands, KeyCode, Query, Res, ResMut, Resource}, time::Time, transform::components::Transform};
+use bevy::{app::{Plugin, Startup, Update}, input::ButtonInput, prelude::{Commands, KeyCode, Res, ResMut, Resource}, time::Time};
 
 use crate::MOVEMENT_SPEED;
 

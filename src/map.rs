@@ -1,5 +1,5 @@
 use bevy::{
-    app::{FixedUpdate, Plugin, Startup, Update}, asset::AssetServer, color::Color, hierarchy::{BuildChildren, DespawnRecursiveExt}, math::{Vec2, Vec3}, prelude::{default, Bundle, Commands, Component, Entity, IntoSystemConfigs, Query, Res, Resource, SpatialBundle, With}, sprite::{Sprite, SpriteBundle}, transform::{commands, components::Transform}
+    app::{Plugin, Startup, Update}, asset::AssetServer, color::Color, hierarchy::{BuildChildren, DespawnRecursiveExt}, math::{Vec2, Vec3}, prelude::{default, Commands, Component, Entity, IntoSystemConfigs, Query, Res, Resource, SpatialBundle}, sprite::{Sprite, SpriteBundle}, transform::components::Transform
 };
 use noise::{
     core::perlin::perlin_2d,
@@ -8,7 +8,7 @@ use noise::{
 };
 
 use crate::{
-    control::CurrentControlOffset, utils, BLOCK_SIZE, BLOCK_Y_COUNT, CANVAS_WIDTH, CHUNKS_TO_LOAD, CHUNK_INITIAL_OFFSET, CHUNK_WIDTH, FLOOR_MEDIAN, FLOOR_THRESHOLD, PIXEL_PERFECT_LAYERS, RES_HEIGHT_OFFSET, WORLD_WIDTH
+    control::CurrentControlOffset, utils, BLOCK_SIZE, CHUNKS_TO_LOAD, CHUNK_COUNT, CHUNK_INITIAL_OFFSET, CHUNK_WIDTH, FLOOR_MEDIAN, FLOOR_THRESHOLD, PIXEL_PERFECT_LAYERS, WORLD_BOTTOM_OFFSET, WORLD_HEIGHT, WORLD_WIDTH
 };
 
 const MAX_OFFSET: f32 = ((CHUNKS_TO_LOAD * CHUNK_WIDTH * BLOCK_SIZE)/2) as f32;
@@ -70,6 +70,7 @@ fn startup(
     current_chunk_offset: Res<CurrentChunkOffset>,
     asset_server: Res<AssetServer>,
 ) {
+    let _ = asset_server;
     let half_chunks_to_load = CHUNKS_TO_LOAD as i32 / 2;
     let remaining_chunks_to_load = CHUNKS_TO_LOAD as i32 % 2;
     
@@ -79,21 +80,23 @@ fn startup(
         let start_y: usize = 0;
 
         let canvas_x: f32 = (i * (CHUNK_WIDTH * BLOCK_SIZE) as i32) as f32;
+        let canvas_y: f32 = (WORLD_BOTTOM_OFFSET * BLOCK_SIZE as i32) as f32;
 
         //criação de um chunk
         commands.spawn((
             SpatialBundle {
-                transform: Transform::from_xyz(canvas_x, RES_HEIGHT_OFFSET as f32, 2.),
+                transform: Transform::from_xyz(canvas_x, canvas_y, 2.),
+                
                 ..default()
             }, 
             Chunk {
                 id: chunk_id,
                 x_offset: canvas_x,
-                y_offset: RES_HEIGHT_OFFSET as f32,
+                y_offset: canvas_y,
             })
         ).with_children(|parent| {
             for col_x in 0..CHUNK_WIDTH {
-                for col_y in 0..BLOCK_Y_COUNT {
+                for col_y in 0..WORLD_HEIGHT {
                     let x = start_x + col_x;
                     let y = start_y + col_y;
 
@@ -171,22 +174,27 @@ fn map_movement(mut query: Query<(Entity, &mut Transform, &mut Chunk)>, control_
 
         if (chunk.x_offset > MAX_OFFSET && control_offset.0 < 0.) || (chunk.x_offset < -MAX_OFFSET && control_offset.0 > 0.) {
             let new_chunk_offset = if chunk.x_offset > 0. { chunk.x_offset-MAX_OFFSET*2. } else { chunk.x_offset+MAX_OFFSET*2. };
-            let chunk_id = if chunk.x_offset > 0. { chunk.id - CHUNKS_TO_LOAD } else { chunk.id + CHUNKS_TO_LOAD };
-            let start_x = CHUNK_WIDTH * chunk_id;
+            let next_index = if chunk.x_offset > 0. { chunk.id as i32 - CHUNKS_TO_LOAD as i32 } else { chunk.id as i32 + CHUNKS_TO_LOAD as i32 };
+            let chunk_index = (next_index as usize % CHUNK_COUNT + CHUNK_COUNT) % CHUNK_COUNT;
+            let start_x = CHUNK_WIDTH * chunk_index;
             let start_y: usize = 0;
+
+// 8 = 0 .. 7
+// 8 = 0
+// -1
 
             commands
             .spawn((SpatialBundle {
                 transform: Transform::from_xyz(new_chunk_offset, chunk.y_offset, 2.),
                 ..default()
             }, Chunk {
-                id: chunk_id,
+                id: chunk_index,
                 x_offset: new_chunk_offset,
                 y_offset: chunk.y_offset,
             }))
             .with_children(|parent| {
                 for col_x in 0..CHUNK_WIDTH {
-                    for col_y in 0..BLOCK_Y_COUNT {
+                    for col_y in 0..WORLD_HEIGHT {
                         let x = start_x + col_x;
                         let y = start_y + col_y;
                         
@@ -220,8 +228,8 @@ fn generate_noise_map() -> NoiseMap {
     let hasher = PermutationTable::new(0);
     let r = PlaneMapBuilder::new_fn(|point| perlin_2d(point.into(), &hasher))
         .set_size(WORLD_WIDTH, 1)
-        .set_x_bounds(-32., 32.)
-        .set_y_bounds(-32., 32.)
+        .set_x_bounds(-200., 200.)
+        .set_y_bounds(-200., 200.)
         .build();
 
     utils::write_example_to_file(&r, "world.png");
