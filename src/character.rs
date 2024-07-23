@@ -38,7 +38,7 @@ fn startup(mut commands: Commands, asset_server: Res<AssetServer>, game_world: R
                 4.0,
             ),
             sprite: Sprite {
-                // anchor: bevy::sprite::Anchor::BottomCenter,
+                anchor: bevy::sprite::Anchor::BottomCenter,
                 custom_size: Option::Some(Vec2::new(14.0, 30.0)),
                 rect: Some(Rect {
                     max: Vec2::new(520.0, 540.0),

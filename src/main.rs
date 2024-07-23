@@ -28,6 +28,7 @@ mod physics;
 use bevy::asset::AssetMetaCheck;
 use bevy::prelude::*;
 use bevy::render::view::RenderLayers;
+use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use game::GamePlugins;
 
 use noise::{
@@ -97,6 +98,7 @@ fn main() {
         ).set(ImagePlugin::default_nearest()),
             GamePlugins
         ))
+        .add_plugins(WorldInspectorPlugin::new())
         .run();
 }
 
