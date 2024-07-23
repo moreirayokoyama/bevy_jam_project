@@ -6,10 +6,10 @@ use bevy::{
     sprite::{Sprite, SpriteBundle},
     transform::components::Transform,
 };
+use bevy_rapier2d::prelude::*;
 
 use crate::{
     control::{CharacterControlOffset, MapControlOffset},
-    physics::RigidBody,
     GameWorld, BLOCK_SIZE, PIXEL_PERFECT_LAYERS, WORLD_BOTTOM_OFFSET_IN_PIXELS, WORLD_CENTER_COL,
 };
 
@@ -28,7 +28,6 @@ impl Plugin for CharacterPlugin {
 fn startup(mut commands: Commands, asset_server: Res<AssetServer>, game_world: Res<GameWorld>) {
     commands.spawn((
         Character,
-        RigidBody,
         SpriteBundle {
             texture: asset_server.load("character/idle/i2.png"),
             transform: Transform::from_xyz(
@@ -38,7 +37,7 @@ fn startup(mut commands: Commands, asset_server: Res<AssetServer>, game_world: R
                 4.0,
             ),
             sprite: Sprite {
-                anchor: bevy::sprite::Anchor::BottomCenter,
+                //anchor: bevy::sprite::Anchor::BottomCenter,
                 custom_size: Option::Some(Vec2::new(14.0, 30.0)),
                 rect: Some(Rect {
                     max: Vec2::new(520.0, 540.0),
@@ -48,6 +47,11 @@ fn startup(mut commands: Commands, asset_server: Res<AssetServer>, game_world: R
             },
             ..default()
         },
+        RigidBody::Dynamic,
+        Collider::capsule_y(11.5, 7.),
+        Restitution::coefficient(0.7),
+        LockedAxes::ROTATION_LOCKED,
+        Ccd::enabled(),
         PIXEL_PERFECT_LAYERS,
     ));
 }

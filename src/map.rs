@@ -6,16 +6,17 @@ use bevy::{
     math::{Vec2, Vec3},
     prelude::{
         default, Commands, Component, Entity, IntoSystemConfigs, Query, Res, ResMut, Resource,
-        SpatialBundle,
+        SpatialBundle, TransformBundle,
     },
     sprite::{Sprite, SpriteBundle},
     transform::components::Transform,
 };
+use bevy_rapier2d::{math::{Real, Vect}, prelude::Collider};
 
 use crate::{
-    control::MapControlOffset, physics::Collider, GameWorld, BLOCK_SIZE, CHUNKS_TO_LOAD,
-    CHUNK_COUNT, CHUNK_INITIAL_OFFSET, CHUNK_WIDTH, PIXEL_PERFECT_LAYERS, WORLD_BOTTOM_OFFSET,
-    WORLD_CENTER_COL, WORLD_HEIGHT,
+    control::MapControlOffset, GameWorld, BLOCK_SIZE, CHUNKS_TO_LOAD, CHUNK_COUNT,
+    CHUNK_INITIAL_OFFSET, CHUNK_WIDTH, PIXEL_PERFECT_LAYERS, WORLD_BOTTOM_OFFSET, WORLD_CENTER_COL,
+    WORLD_HEIGHT, WORLD_WIDTH,
 };
 
 const MAX_OFFSET: f32 = ((CHUNKS_TO_LOAD * CHUNK_WIDTH * BLOCK_SIZE) / 2) as f32;
@@ -43,6 +44,9 @@ enum SolidBlock {
     Earth,
 }
 
+#[derive(Component)]
+struct Surface;
+
 pub struct MapPlugin;
 
 impl Plugin for MapPlugin {
@@ -67,67 +71,11 @@ fn startup(
     let remaining_chunks_to_load = CHUNKS_TO_LOAD as i32 % 2;
 
     for i in -half_chunks_to_load..(half_chunks_to_load + remaining_chunks_to_load) {
-        let chunk_id = ((current_chunk_offset.0 as i32) + i) as usize;
-        let start_x = CHUNK_WIDTH * chunk_id;
-        let start_y: usize = 0;
+        let chunk_index = ((current_chunk_offset.0 as i32) + i) as usize;
+        let x: f32 = (i * (CHUNK_WIDTH * BLOCK_SIZE) as i32) as f32;
+        let y: f32 = (WORLD_BOTTOM_OFFSET * BLOCK_SIZE as i32) as f32;
 
-        let canvas_x: f32 = (i * (CHUNK_WIDTH * BLOCK_SIZE) as i32) as f32;
-        let canvas_y: f32 = (WORLD_BOTTOM_OFFSET * BLOCK_SIZE as i32) as f32;
-
-        //criação de um chunk
-        commands
-            .spawn((
-                SpatialBundle {
-                    transform: Transform::from_xyz(canvas_x, canvas_y, 2.),
-
-                    ..default()
-                },
-                Chunk {
-                    index: chunk_id,
-                    x_offset: canvas_x,
-                    y_offset: canvas_y,
-                },
-            ))
-            .with_children(|parent| {
-                if chunk_id == current_chunk_offset.0 {
-                    println!(
-                        "BLoco y: {:?}",
-                        game_world.surface_height[WORLD_CENTER_COL] as usize
-                    );
-                    println!(
-                        "BLoco y * block size: {:?}",
-                        game_world.surface_height[WORLD_CENTER_COL] as usize * BLOCK_SIZE
-                    );
-                    parent.spawn((
-                        new_stone_block(0, game_world.surface_height[WORLD_CENTER_COL] as usize),
-                        PIXEL_PERFECT_LAYERS,
-                    ));
-                }
-                for col_x in 0..CHUNK_WIDTH {
-                    for col_y in 0..WORLD_HEIGHT {
-                        let x = start_x + col_x;
-                        let y = start_y + col_y;
-
-                        match get_block(x, y, &game_world) {
-                            Block::Air => {}
-                            Block::Solid(SolidBlock::Earth) => {
-                                parent.spawn((new_earth_block(col_x, col_y), PIXEL_PERFECT_LAYERS));
-                            }
-                            Block::Solid(SolidBlock::Stone) => {
-                                parent.spawn((new_stone_block(col_x, col_y), PIXEL_PERFECT_LAYERS));
-                            }
-                            Block::Solid(SolidBlock::Surface) => {
-                                let v = (
-                                    new_surface_block(col_x, col_y),
-                                    Collider,
-                                    PIXEL_PERFECT_LAYERS,
-                                );
-                                parent.spawn(v);
-                            }
-                        }
-                    }
-                }
-            });
+        new_chunk(chunk_index, &game_world, x, y, &mut commands);
     }
 }
 
@@ -157,6 +105,93 @@ fn new_block(x: usize, y: usize, color: Color) -> SpriteBundle {
         )),
         ..default()
     }
+}
+
+fn new_chunk(chunk_index: usize, game_world: &GameWorld, x: f32, y: f32, commands: &mut Commands) {
+    let start_x = CHUNK_WIDTH * chunk_index;
+    let start_y: usize = 0;
+
+    commands
+        .spawn((
+            SpatialBundle {
+                transform: Transform::from_xyz(x, y, 2.),
+                ..default()
+            },
+            Chunk {
+                index: chunk_index,
+                x_offset: x,
+                y_offset: y,
+            },
+        ))
+        .with_children(|parent| {
+            if chunk_index == (WORLD_WIDTH / CHUNK_WIDTH / 2) {
+                parent.spawn((
+                    new_stone_block(0, game_world.surface_height[WORLD_CENTER_COL] as usize),
+                    PIXEL_PERFECT_LAYERS,
+                ));
+            }
+            for col_x in 0..CHUNK_WIDTH {
+                for col_y in 0..WORLD_HEIGHT {
+                    let x = start_x + col_x;
+                    let y = start_y + col_y;
+
+                    match get_block(x, y, &game_world) {
+                        Block::Air => {}
+                        Block::Solid(SolidBlock::Earth) => {
+                            //parent.spawn((new_earth_block(col_x, col_y), PIXEL_PERFECT_LAYERS));
+                        }
+                        Block::Solid(SolidBlock::Stone) => {
+                            parent.spawn((new_stone_block(col_x, col_y), PIXEL_PERFECT_LAYERS));
+                        }
+                        Block::Solid(SolidBlock::Surface) => {
+                            let v = if col_x == 0 {
+                            (
+                                new_stone_block(col_x, col_y), PIXEL_PERFECT_LAYERS
+                            )
+                            } else {
+                            (
+                                new_surface_block(col_x, col_y),
+                                PIXEL_PERFECT_LAYERS,
+                            )   
+                        };
+                            parent.spawn(v);
+                        }
+                    }
+                }
+            }
+            parent.spawn((
+                TransformBundle {
+                    local: Transform::from_translation(Vec3::new(0.0, 0.0, 0.0)),
+                    ..default()
+                },
+                //Collider::heightfield(game_world.surface_height[(start_x)..(start_x + CHUNK_WIDTH + 1)].iter().map(|height| height * BLOCK_SIZE as f32).collect(), Vec2::new((BLOCK_SIZE * CHUNK_WIDTH) as f32, 1.))
+
+                Collider::polyline(new_chunk_polyline(game_world, chunk_index), Option::None),
+            )
+                
+            );
+        });
+}
+
+fn new_chunk_polyline(game_world: &GameWorld, chunk_index: usize) -> Vec<Vec2> {
+    let mut vertices = Vec::<Vec2>::with_capacity(CHUNK_WIDTH * 2 + 4);
+
+    let range_start = (chunk_index * CHUNK_WIDTH) as i32;
+    vertices.push(Vec2::new(-(BLOCK_SIZE as i32 /2) as f32, 0.0));
+    vertices.push(Vec2::new(-(BLOCK_SIZE as i32 /2) as f32, game_world.surface_height[range_start as usize].trunc() * BLOCK_SIZE as f32));
+    
+    for x in range_start..(range_start + CHUNK_WIDTH as i32) {
+        let y = game_world.surface_height[x as usize].trunc();
+        let y2 = game_world.surface_height[(x + 1) as usize].trunc();
+        //println!("{:?}-{:?}", x, range_start, x - range_start);
+        vertices.push(Vec2::new(((x - range_start + 1) * (BLOCK_SIZE) as i32 - (BLOCK_SIZE/2) as i32) as f32, y * BLOCK_SIZE as f32));
+        if y * BLOCK_SIZE as f32 != y2 * BLOCK_SIZE as f32 {
+            vertices.push(Vec2::new(((x - range_start + 1) * (BLOCK_SIZE) as i32 - (BLOCK_SIZE/2) as i32) as f32, y2 * BLOCK_SIZE as f32));
+        }
+    }
+    vertices.push(Vec2::new((CHUNK_WIDTH as i32 * BLOCK_SIZE as i32 - (BLOCK_SIZE/2) as i32) as f32, 0.0));
+    vertices.push(Vec2::new(-(BLOCK_SIZE as i32/2) as f32, 0.0));
+    vertices
 }
 
 fn map_movement(
@@ -189,61 +224,15 @@ fn map_movement(
                 )
             };
             let chunk_index = (next_index as usize % CHUNK_COUNT + CHUNK_COUNT) % CHUNK_COUNT;
-            let start_x = CHUNK_WIDTH * chunk_index;
-            let start_y: usize = 0;
 
-            commands
-                .spawn((
-                    SpatialBundle {
-                        transform: Transform::from_xyz(new_chunk_offset, chunk.y_offset, 2.),
-                        ..default()
-                    },
-                    Chunk {
-                        index: chunk_index,
-                        x_offset: new_chunk_offset,
-                        y_offset: chunk.y_offset,
-                    },
-                ))
-                .with_children(|parent| {
-                    if chunk_index == current_chunk_offset.0 {
-                        parent.spawn((
-                            new_stone_block(
-                                0,
-                                game_world.surface_height[WORLD_CENTER_COL] as usize,
-                            ),
-                            PIXEL_PERFECT_LAYERS,
-                        ));
-                    }
-                    for col_x in 0..CHUNK_WIDTH {
-                        for col_y in 0..WORLD_HEIGHT {
-                            let x = start_x + col_x;
-                            let y = start_y + col_y;
+            new_chunk(
+                chunk_index,
+                &game_world,
+                new_chunk_offset,
+                chunk.y_offset,
+                &mut commands,
+            );
 
-                            match get_block(x, y, &game_world) {
-                                Block::Air => {}
-                                Block::Solid(SolidBlock::Earth) => {
-                                    parent.spawn((
-                                        new_earth_block(col_x, col_y),
-                                        PIXEL_PERFECT_LAYERS,
-                                    ));
-                                }
-                                Block::Solid(SolidBlock::Stone) => {
-                                    parent.spawn((
-                                        new_stone_block(col_x, col_y),
-                                        PIXEL_PERFECT_LAYERS,
-                                    ));
-                                }
-                                Block::Solid(SolidBlock::Surface) => {
-                                    parent.spawn((
-                                        new_surface_block(col_x, col_y),
-                                        Collider,
-                                        PIXEL_PERFECT_LAYERS,
-                                    ));
-                                }
-                            }
-                        }
-                    }
-                });
             commands.entity(entity).despawn_recursive();
         }
     }
