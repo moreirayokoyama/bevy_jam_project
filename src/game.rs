@@ -1,6 +1,6 @@
 use bevy::app::{PluginGroup, PluginGroupBuilder};
 
-use crate::{camera::CameraPlugin, control::ControlPlugin, map::MapPlugin, player::PlayerPlugin};
+use crate::{camera::CameraPlugin, character::CharacterPlugin, control::ControlPlugin, map::MapPlugin, physics::PhysicsPlugin};
 
 pub struct GamePlugins;
 
@@ -10,6 +10,7 @@ impl PluginGroup for GamePlugins {
         .add(MapPlugin)
         .add(CameraPlugin)
         .add(ControlPlugin)
-        .add_after::<MapPlugin, PlayerPlugin>(PlayerPlugin)
+        .add(PhysicsPlugin)
+        .add_after::<MapPlugin, CharacterPlugin>(CharacterPlugin)
     }
 }

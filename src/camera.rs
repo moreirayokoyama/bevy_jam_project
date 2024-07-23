@@ -7,7 +7,7 @@ use bevy::{
         render_resource::{
             Extent3d, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages,
         },
-        texture::Image,
+        texture::Image, view::Msaa,
     },
     sprite::SpriteBundle,
     window::WindowResized,
@@ -21,11 +21,17 @@ struct OuterCamera;
 #[derive(Component)]
 struct Canvas;
 
+#[derive(Component)]
+struct InGameCamera;
+
+
 pub struct CameraPlugin;
 
 impl Plugin for CameraPlugin {
     fn build(&self, app: &mut bevy::prelude::App) {
-        app.add_systems(Startup, startup)
+        app
+            .insert_resource(Msaa::Off)
+            .add_systems(Startup, startup)
             .add_systems(Update, fit_canvas);
     }
 }
@@ -70,6 +76,7 @@ fn startup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
             },
             ..default()
         },
+        InGameCamera,
         PIXEL_PERFECT_LAYERS,
     ));
 

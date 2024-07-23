@@ -6,25 +6,29 @@
 
 //TODO: Ponderar sobre tamanho do bloco, tamanho do chunk, tamanho do mundo
 //TODO: Levar a velocidade do movimento do mapa para o módulo map, e remover do módulo control
+//TODO: Todo o sistema de coordenadas seja i32 começando em zero (somente valores positivos)
 
 //NOTE: asset do player (https://opengameart.org/content/pixel-character-0)
+
+/**
+ * 
+ * 20:26BigardiDEV: em resumo é um AABB com um for loop da posição antiga pra próxima posição pra evitar de passar por colisores quando tiver rapido
+ * 20:27BigardiDEV: pra otimizar mete um spatial hashing baseado em grid que tá show
+ * 20:28BigardiDEV: você tem lá seus grids que são "baldes" que seguram uma lista de entidades nele baseando na posição, aí cada entidade só precisa verificar a colisão com os baldes vizinhos, evita o big O notation
+ */
 
 mod camera;
 mod map;
 mod utils;
 mod control;
-mod player;
+mod character;
 mod game;
+mod physics;
 
-use bevy::app::PluginGroupBuilder;
 use bevy::asset::AssetMetaCheck;
 use bevy::prelude::*;
 use bevy::render::view::RenderLayers;
-use camera::CameraPlugin;
-use control::ControlPlugin;
 use game::GamePlugins;
-use map::MapPlugin;
-use player::PlayerPlugin;
 
 use noise::{
     core::perlin::perlin_2d,
@@ -54,21 +58,23 @@ pub const CHUNKS_IN_CANVAS: usize = CANVAS_WIDTH / (CHUNK_WIDTH * BLOCK_SIZE);
 pub const CHUNKS_LOAD_THRESHOLD: usize = 2; 
 pub const CHUNKS_TO_LOAD: usize = CHUNKS_IN_CANVAS + CHUNKS_LOAD_THRESHOLD;
 
-pub const MOVEMENT_SPEED: usize = BLOCK_SIZE * 16; //camera speed in blocks/second
+pub const MAP_MOVEMENT_SPEED: usize = BLOCK_SIZE * 8; //camera speed in blocks/second
+pub const CHARACTER_MOVEMENT_SPEED: usize = BLOCK_SIZE * 32; //camera speed in blocks/second
 
 pub const DAY_DURATION_IN_SECONDS: usize = 4 * 60;
-pub const WORLD_WIDTH: usize = DAY_DURATION_IN_SECONDS * MOVEMENT_SPEED;
+pub const WORLD_WIDTH: usize = DAY_DURATION_IN_SECONDS * MAP_MOVEMENT_SPEED;
 pub const WORLD_HEIGHT: usize = 128; //World height in blocks
 
-pub const FLOOR_MEDIAN: f64 = (WORLD_HEIGHT as f64) * 0.5;
-pub const FLOOR_THRESHOLD: f64 = FLOOR_MEDIAN * 0.5;
+pub const FLOOR_MEDIAN: f32 = (WORLD_HEIGHT as f32) * 0.5;
+pub const FLOOR_THRESHOLD: f32 = FLOOR_MEDIAN * 0.5;
 pub const WORLD_BOTTOM_OFFSET: i32 = -(WORLD_HEIGHT as i32 / 2);
+pub const WORLD_BOTTOM_OFFSET_IN_PIXELS: i32 = WORLD_BOTTOM_OFFSET * BLOCK_SIZE as i32;
 pub const WORLD_CENTER_COL: usize = (WORLD_WIDTH / 2) -1;
 
 #[derive(Resource)]
 pub struct GameWorld {
     pub noise_map: NoiseMap,
-    pub surface_height: Vec<f64>,
+    pub surface_height: Vec<f32>,
 }
 
 fn main() {
@@ -87,7 +93,8 @@ fn main() {
                 // See https://github.com/bevyengine/bevy_github_ci_template/issues/48.
                 meta_check: AssetMetaCheck::Never,
                 ..default()
-            }),
+            },
+        ).set(ImagePlugin::default_nearest()),
             GamePlugins
         ))
         .run();
@@ -105,10 +112,10 @@ fn generate_noise_map() -> NoiseMap {
     r
 }
 
-fn generate_surface_height_vec(noise_map: &NoiseMap) -> Vec<f64> {
-    let mut v = Vec::<f64>::with_capacity(WORLD_WIDTH);
+fn generate_surface_height_vec(noise_map: &NoiseMap) -> Vec<f32> {
+    let mut v = Vec::<f32>::with_capacity(WORLD_WIDTH);
     for x in 0..WORLD_WIDTH {
-        v.push(FLOOR_MEDIAN + noise_map.get_value(x as usize, 0) * FLOOR_THRESHOLD);
+        v.push(FLOOR_MEDIAN + noise_map.get_value(x as usize, 0) as f32 * FLOOR_THRESHOLD);
     }
     v
 }
