@@ -1,13 +1,7 @@
 use bevy::{
     app::{FixedUpdate, Plugin},
-    color::{
-        palettes::css::{LIGHT_CYAN, RED},
-        Color,
-    },
-    math::{
-        bounding::{Aabb2d, IntersectsVolume},
-        Vec3,
-    },
+    color::palettes::css::{LIGHT_CYAN, RED},
+    math::bounding::{Aabb2d, IntersectsVolume},
     prelude::{Component, Gizmos, GlobalTransform, Query, Res, Transform, With, Without},
     sprite::Sprite,
     time::Time,

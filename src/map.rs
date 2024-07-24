@@ -11,10 +11,7 @@ use bevy::{
     sprite::{Sprite, SpriteBundle},
     transform::components::Transform,
 };
-use bevy_rapier2d::{
-    math::{Real, Vect},
-    prelude::Collider,
-};
+use bevy_rapier2d::prelude::Collider;
 
 use crate::{
     control::MapControlOffset, GameWorld, BLOCK_SIZE, CHUNKS_TO_LOAD, CHUNK_COUNT,
@@ -46,9 +43,6 @@ enum SolidBlock {
     Stone,
     Earth,
 }
-
-#[derive(Component)]
-struct Surface;
 
 pub struct MapPlugin;
 

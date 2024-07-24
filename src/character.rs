@@ -1,9 +1,8 @@
 use bevy::{
     app::{Plugin, Startup, Update},
-    asset::{Asset, AssetServer, Assets, Handle},
-    color::palettes::css::{GREEN, RED},
-    math::{Rect, Vec2, Vec3},
-    prelude::{default, Commands, Component, DetectChanges, Gizmos, Image, Query, Res, With},
+    asset::AssetServer,
+    math::{Rect, Vec2},
+    prelude::{default, Commands, Component, Query, Res, With},
     sprite::{Sprite, SpriteBundle},
     time::Time,
     transform::components::Transform,
@@ -87,7 +86,6 @@ fn movement(
     mut query: Query<(&Character, &mut KinematicCharacterController)>,
     control_offset: Res<CharacterControlOffset>,
     time: Res<Time>,
-    mut gizmos: Gizmos,
 ) {
     let (character, mut character_controller) = query.single_mut();
 

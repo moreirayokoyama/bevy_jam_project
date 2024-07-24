@@ -2,7 +2,6 @@ use bevy::app::{PluginGroup, PluginGroupBuilder};
 
 use crate::{
     camera::CameraPlugin, character::CharacterPlugin, control::ControlPlugin, map::MapPlugin,
-    physics::PhysicsPlugin,
 };
 
 pub struct GamePlugins;
