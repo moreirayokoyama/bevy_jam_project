@@ -11,7 +11,10 @@ use bevy::{
     sprite::{Sprite, SpriteBundle},
     transform::components::Transform,
 };
-use bevy_rapier2d::{math::{Real, Vect}, prelude::Collider};
+use bevy_rapier2d::{
+    math::{Real, Vect},
+    prelude::Collider,
+};
 
 use crate::{
     control::MapControlOffset, GameWorld, BLOCK_SIZE, CHUNKS_TO_LOAD, CHUNK_COUNT,
@@ -145,15 +148,10 @@ fn new_chunk(chunk_index: usize, game_world: &GameWorld, x: f32, y: f32, command
                         }
                         Block::Solid(SolidBlock::Surface) => {
                             let v = if col_x == 0 {
-                            (
-                                new_stone_block(col_x, col_y), PIXEL_PERFECT_LAYERS
-                            )
+                                (new_stone_block(col_x, col_y), PIXEL_PERFECT_LAYERS)
                             } else {
-                            (
-                                new_surface_block(col_x, col_y),
-                                PIXEL_PERFECT_LAYERS,
-                            )   
-                        };
+                                (new_surface_block(col_x, col_y), PIXEL_PERFECT_LAYERS)
+                            };
                             parent.spawn(v);
                         }
                     }
@@ -165,9 +163,7 @@ fn new_chunk(chunk_index: usize, game_world: &GameWorld, x: f32, y: f32, command
                     ..default()
                 },
                 Collider::polyline(new_chunk_polyline(game_world, chunk_index), Option::None),
-            )
-                
-            );
+            ));
         });
 }
 
@@ -175,19 +171,31 @@ fn new_chunk_polyline(game_world: &GameWorld, chunk_index: usize) -> Vec<Vec2> {
     let mut vertices = Vec::<Vec2>::with_capacity(CHUNK_WIDTH * 2 + 4);
 
     let range_start = (chunk_index * CHUNK_WIDTH) as i32;
-    vertices.push(Vec2::new(-(BLOCK_SIZE as i32 /2) as f32, 0.0));
-    vertices.push(Vec2::new(-(BLOCK_SIZE as i32 /2) as f32, game_world.surface_height[range_start as usize].trunc() * BLOCK_SIZE as f32));
-    
+    vertices.push(Vec2::new(-(BLOCK_SIZE as i32 / 2) as f32, 0.0));
+    vertices.push(Vec2::new(
+        -(BLOCK_SIZE as i32 / 2) as f32,
+        game_world.surface_height[range_start as usize].trunc() * BLOCK_SIZE as f32,
+    ));
+
     for x in range_start..(range_start + CHUNK_WIDTH as i32) {
         let y = game_world.surface_height[x as usize].trunc();
         let y2 = game_world.surface_height[(x + 1) as usize].trunc();
-        vertices.push(Vec2::new(((x - range_start + 1) * (BLOCK_SIZE) as i32 - (BLOCK_SIZE/2) as i32) as f32, y * BLOCK_SIZE as f32));
+        vertices.push(Vec2::new(
+            ((x - range_start + 1) * (BLOCK_SIZE) as i32 - (BLOCK_SIZE / 2) as i32) as f32,
+            y * BLOCK_SIZE as f32,
+        ));
         if y * BLOCK_SIZE as f32 != y2 * BLOCK_SIZE as f32 {
-            vertices.push(Vec2::new(((x - range_start + 1) * (BLOCK_SIZE) as i32 - (BLOCK_SIZE/2) as i32) as f32, y2 * BLOCK_SIZE as f32));
+            vertices.push(Vec2::new(
+                ((x - range_start + 1) * (BLOCK_SIZE) as i32 - (BLOCK_SIZE / 2) as i32) as f32,
+                y2 * BLOCK_SIZE as f32,
+            ));
         }
     }
-    vertices.push(Vec2::new((CHUNK_WIDTH as i32 * BLOCK_SIZE as i32 - (BLOCK_SIZE/2) as i32) as f32, 0.0));
-    vertices.push(Vec2::new(-(BLOCK_SIZE as i32/2) as f32, 0.0));
+    vertices.push(Vec2::new(
+        (CHUNK_WIDTH as i32 * BLOCK_SIZE as i32 - (BLOCK_SIZE / 2) as i32) as f32,
+        0.0,
+    ));
+    vertices.push(Vec2::new(-(BLOCK_SIZE as i32 / 2) as f32, 0.0));
     vertices
 }
 

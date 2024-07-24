@@ -57,7 +57,7 @@ fn startup(mut commands: Commands, asset_server: Res<AssetServer>, game_world: R
         RigidBody::KinematicPositionBased,
         Collider::capsule_y(11.5, 7.),
         KinematicCharacterController {
-            //custom_shape:
+            custom_shape: Option::Some((Collider::cuboid(7., 15.), Vec2::new(0., 5.), 0.)),
             offset: CharacterLength::Absolute(0.1),
             autostep: Option::Some(CharacterAutostep {
                 max_height: CharacterLength::Relative(0.5),
@@ -66,7 +66,7 @@ fn startup(mut commands: Commands, asset_server: Res<AssetServer>, game_world: R
             }),
             slide: true,
             snap_to_ground: Option::Some(CharacterLength::Absolute(0.1)),
-            normal_nudge_factor: 4.,
+            normal_nudge_factor: 1.,
             ..default()
         },
         //LockedAxes::ROTATION_LOCKED,
