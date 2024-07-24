@@ -36,11 +36,7 @@ use bevy_rapier2d::{
 use game::GamePlugins;
 
 use game_world::GameWorld;
-use noise::{
-    core::perlin::perlin_2d,
-    permutationtable::PermutationTable,
-    utils::{NoiseMap, PlaneMapBuilder},
-};
+use noise::{core::perlin::perlin_2d, permutationtable::PermutationTable, utils::*, Fbm, Worley};
 
 pub const PIXEL_PERFECT_LAYERS: RenderLayers = RenderLayers::layer(0);
 pub const HIGH_RES_LAYERS: RenderLayers = RenderLayers::layer(1);
@@ -92,7 +88,15 @@ fn main() {
                     meta_check: AssetMetaCheck::Never,
                     ..default()
                 })
-                .set(ImagePlugin::default_nearest()),
+                .set(ImagePlugin::default_nearest())
+                .set(WindowPlugin {
+                    primary_window: Some(Window {
+                        fit_canvas_to_parent: true,
+                        resolution: (CANVAS_WIDTH as f32, CANVAS_HEIGHT as f32).into(),
+                        ..default()
+                    }),
+                    ..default()
+                }),
             GamePlugins,
         ))
         //bevy_rapier2d
@@ -105,10 +109,11 @@ fn main() {
 
 fn generate_noise_map() -> NoiseMap {
     let hasher = PermutationTable::new(0);
+    let fbm = Fbm::<Worley>::new(0);
     let bounds = WORLD_WIDTH as f64 * 0.002;
-    let r = PlaneMapBuilder::new_fn(|point| perlin_2d(point.into(), &hasher))
+    let r = PlaneMapBuilder::new(fbm) //new_fn(|point| perlin_2d(point.into(), &hasher))
         .set_size(WORLD_WIDTH, 1)
-        .set_x_bounds(-bounds, bounds)
+        .set_x_bounds(-bounds * 1., bounds * 1.)
         .set_y_bounds(-bounds, bounds)
         .build();
 
