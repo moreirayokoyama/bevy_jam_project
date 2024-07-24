@@ -110,7 +110,7 @@ fn main() {
 fn generate_noise_map() -> NoiseMap {
     let hasher = PermutationTable::new(0);
     let fbm = Fbm::<Worley>::new(0);
-    let bounds = WORLD_WIDTH as f64 * 0.002;
+    let bounds = WORLD_WIDTH as f64 * 0.0025;
     let r = PlaneMapBuilder::new(fbm) //new_fn(|point| perlin_2d(point.into(), &hasher))
         .set_size(WORLD_WIDTH, 1)
         .set_x_bounds(-bounds * 1., bounds * 1.)
