@@ -14,7 +14,7 @@ use bevy::{
 use bevy_rapier2d::prelude::Collider;
 
 use crate::{
-    control::MapControlOffset, GameWorld, BLOCK_SIZE, CHUNKS_TO_LOAD, CHUNK_COUNT,
+    control::MapControlOffset, game_world::GameWorld, BLOCK_SIZE, CHUNKS_TO_LOAD, CHUNK_COUNT,
     CHUNK_INITIAL_OFFSET, CHUNK_WIDTH, PIXEL_PERFECT_LAYERS, WORLD_BOTTOM_OFFSET, WORLD_CENTER_COL,
     WORLD_HEIGHT, WORLD_WIDTH,
 };
@@ -123,7 +123,7 @@ fn new_chunk(chunk_index: usize, game_world: &GameWorld, x: f32, y: f32, command
         .with_children(|parent| {
             if chunk_index == (WORLD_WIDTH / CHUNK_WIDTH / 2) {
                 parent.spawn((
-                    new_stone_block(0, game_world.surface_height[WORLD_CENTER_COL] as usize),
+                    new_stone_block(0, game_world.get_height(WORLD_CENTER_COL) as usize + 10),
                     PIXEL_PERFECT_LAYERS,
                 ));
             }
@@ -168,12 +168,12 @@ fn new_chunk_polyline(game_world: &GameWorld, chunk_index: usize) -> Vec<Vec2> {
     vertices.push(Vec2::new(-(BLOCK_SIZE as i32 / 2) as f32, 0.0));
     vertices.push(Vec2::new(
         -(BLOCK_SIZE as i32 / 2) as f32,
-        game_world.surface_height[range_start as usize].trunc() * BLOCK_SIZE as f32,
+        game_world.get_height(range_start as usize).trunc() * BLOCK_SIZE as f32,
     ));
 
     for x in range_start..(range_start + CHUNK_WIDTH as i32) {
-        let y = game_world.surface_height[x as usize].trunc();
-        let y2 = game_world.surface_height[(x + 1) as usize].trunc();
+        let y = game_world.get_height(x as usize).trunc();
+        let y2 = game_world.get_height((x + 1) as usize).trunc();
         vertices.push(Vec2::new(
             ((x - range_start + 1) * (BLOCK_SIZE) as i32 - (BLOCK_SIZE / 2) as i32) as f32,
             y * BLOCK_SIZE as f32,
@@ -222,7 +222,11 @@ fn map_movement(
                     chunk.index as i32 + CHUNKS_TO_LOAD as i32,
                 )
             };
-            let chunk_index = (next_index as usize % CHUNK_COUNT + CHUNK_COUNT) % CHUNK_COUNT;
+            let chunk_index = next_index as usize % CHUNK_COUNT;
+            println!(
+                "next index: {:?} - chunk index: {:?}",
+                next_index, chunk_index
+            );
 
             new_chunk(
                 chunk_index,
@@ -238,9 +242,9 @@ fn map_movement(
 }
 
 fn get_block(x: usize, y: usize, game_world: &GameWorld) -> Block {
-    if (y as f32) < game_world.surface_height[x] && (y + 1) as f32 >= game_world.surface_height[x] {
+    if (y as f32) < game_world.get_height(x) && (y + 1) as f32 >= game_world.get_height(x) {
         Block::Solid(SolidBlock::Surface)
-    } else if (y as f32) < game_world.surface_height[x] {
+    } else if (y as f32) < game_world.get_height(x) {
         Block::Solid(SolidBlock::Earth)
     } else {
         Block::Air

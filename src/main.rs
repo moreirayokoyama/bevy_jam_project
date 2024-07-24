@@ -20,6 +20,7 @@ mod camera;
 mod character;
 mod control;
 mod game;
+mod game_world;
 mod map;
 mod physics;
 mod utils;
@@ -34,6 +35,7 @@ use bevy_rapier2d::{
 };
 use game::GamePlugins;
 
+use game_world::GameWorld;
 use noise::{
     core::perlin::perlin_2d,
     permutationtable::PermutationTable,
@@ -64,7 +66,7 @@ pub const CHUNKS_TO_LOAD: usize = CHUNKS_IN_CANVAS + CHUNKS_LOAD_THRESHOLD;
 pub const MAP_MOVEMENT_SPEED: usize = BLOCK_SIZE * 8; //camera speed in blocks/second
 pub const CHARACTER_MOVEMENT_SPEED: usize = BLOCK_SIZE * 32; //camera speed in blocks/second
 
-pub const DAY_DURATION_IN_SECONDS: usize = 4 * 60;
+pub const DAY_DURATION_IN_SECONDS: usize = 20;
 pub const WORLD_WIDTH: usize = DAY_DURATION_IN_SECONDS * MAP_MOVEMENT_SPEED;
 pub const WORLD_HEIGHT: usize = 128; //World height in blocks
 
@@ -74,21 +76,12 @@ pub const WORLD_BOTTOM_OFFSET: i32 = -(WORLD_HEIGHT as i32 / 2);
 pub const WORLD_BOTTOM_OFFSET_IN_PIXELS: i32 = WORLD_BOTTOM_OFFSET * BLOCK_SIZE as i32;
 pub const WORLD_CENTER_COL: usize = (WORLD_WIDTH / 2) - 1;
 
-#[derive(Resource)]
-pub struct GameWorld {
-    pub noise_map: NoiseMap,
-    pub surface_height: Vec<f32>,
-}
-
 fn main() {
     let noise_map = generate_noise_map();
     let surface_height = generate_surface_height_vec(&noise_map);
 
     App::new()
-        .insert_resource(GameWorld {
-            noise_map,
-            surface_height,
-        })
+        .insert_resource(GameWorld::new(noise_map, surface_height))
         .add_plugins((
             DefaultPlugins
                 .set(AssetPlugin {
