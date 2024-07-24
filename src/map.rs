@@ -223,11 +223,6 @@ fn map_movement(
                 )
             };
             let chunk_index = next_index as usize % CHUNK_COUNT;
-            println!(
-                "next index: {:?} - chunk index: {:?}",
-                next_index, chunk_index
-            );
-
             new_chunk(
                 chunk_index,
                 &game_world,

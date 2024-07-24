@@ -35,13 +35,13 @@ fn map_movement_input(
     mut control_offset: ResMut<MapControlOffset>,
     time: Res<Time>,
 ) {
-    let xdelta = ((keys.pressed(KeyCode::ArrowRight) as i32)
-        - (keys.pressed(KeyCode::ArrowLeft) as i32)) as f32
-        * (MAP_MOVEMENT_SPEED as f32)
+    let xdelta = (((keys.pressed(KeyCode::ArrowRight) as i32)
+        - (keys.pressed(KeyCode::ArrowLeft) as i32))
+        * (MAP_MOVEMENT_SPEED as i32)) as f32
         * time.delta_seconds();
-    let ydelta = ((keys.pressed(KeyCode::ArrowUp) as i32)
-        - (keys.pressed(KeyCode::ArrowDown) as i32)) as f32
-        * (MAP_MOVEMENT_SPEED as f32)
+    let ydelta = (((keys.pressed(KeyCode::ArrowUp) as i32)
+        - (keys.pressed(KeyCode::ArrowDown) as i32))
+        * (MAP_MOVEMENT_SPEED as i32)) as f32
         * time.delta_seconds();
 
     control_offset.0 = xdelta;

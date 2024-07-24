@@ -63,11 +63,12 @@ pub const CHUNKS_IN_CANVAS: usize = CANVAS_WIDTH / (CHUNK_WIDTH * BLOCK_SIZE);
 pub const CHUNKS_LOAD_THRESHOLD: usize = 2;
 pub const CHUNKS_TO_LOAD: usize = CHUNKS_IN_CANVAS + CHUNKS_LOAD_THRESHOLD;
 
-pub const MAP_MOVEMENT_SPEED: usize = BLOCK_SIZE * 8; //camera speed in blocks/second
+pub const MAP_MOVEMENT_SPEED_IN_BLOCKS: usize = 4; //camera speed in blocks/second
+pub const MAP_MOVEMENT_SPEED: usize = BLOCK_SIZE * MAP_MOVEMENT_SPEED_IN_BLOCKS; //camera speed in pixels/second
 pub const CHARACTER_MOVEMENT_SPEED: usize = BLOCK_SIZE * 32; //camera speed in blocks/second
 
-pub const DAY_DURATION_IN_SECONDS: usize = 20;
-pub const WORLD_WIDTH: usize = DAY_DURATION_IN_SECONDS * MAP_MOVEMENT_SPEED;
+pub const DAY_DURATION_IN_SECONDS: usize = 4 * 60;
+pub const WORLD_WIDTH: usize = DAY_DURATION_IN_SECONDS * MAP_MOVEMENT_SPEED_IN_BLOCKS;
 pub const WORLD_HEIGHT: usize = 128; //World height in blocks
 
 pub const FLOOR_MEDIAN: f32 = (WORLD_HEIGHT as f32) * 0.5;
@@ -104,10 +105,11 @@ fn main() {
 
 fn generate_noise_map() -> NoiseMap {
     let hasher = PermutationTable::new(0);
+    let bounds = WORLD_WIDTH as f64 * 0.002;
     let r = PlaneMapBuilder::new_fn(|point| perlin_2d(point.into(), &hasher))
         .set_size(WORLD_WIDTH, 1)
-        .set_x_bounds(-80., 80.)
-        .set_y_bounds(-80., 80.)
+        .set_x_bounds(-bounds, bounds)
+        .set_y_bounds(-bounds, bounds)
         .build();
 
     utils::write_example_to_file(&r, "world.png");

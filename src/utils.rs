@@ -23,8 +23,3 @@ pub fn write_image_to_file(image: &NoiseImage, filename: &str) {
 
     image.write_to_file(&target)
 }
-
-#[allow(dead_code)]
-fn main() {
-    println!("This is not an example")
-}
