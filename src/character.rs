@@ -55,18 +55,21 @@ fn startup(mut commands: Commands, asset_server: Res<AssetServer>, game_world: R
             ..default()
         },
         RigidBody::KinematicPositionBased,
-        Collider::cuboid(7., 15.),
+        Collider::capsule_y(11.5, 7.),
         KinematicCharacterController {
-            offset: CharacterLength::Absolute(1.),
-            max_slope_climb_angle: 90_f32.to_radians(),
+            //custom_shape:
+            offset: CharacterLength::Absolute(0.1),
             autostep: Option::Some(CharacterAutostep {
-                max_height: CharacterLength::Relative(100.0),
-                min_width: CharacterLength::Relative(0.001),
+                max_height: CharacterLength::Relative(0.5),
+                min_width: CharacterLength::Relative(0.1),
                 ..default()
             }),
+            slide: true,
+            snap_to_ground: Option::Some(CharacterLength::Absolute(0.1)),
+            normal_nudge_factor: 4.,
             ..default()
         },
-        LockedAxes::ROTATION_LOCKED,
+        //LockedAxes::ROTATION_LOCKED,
         PIXEL_PERFECT_LAYERS,
     ));
 }
@@ -90,11 +93,11 @@ fn movement(
 
     let x_axis = -control_offset.left + control_offset.right;
 
-    let mut move_delta = Vec2::new(x_axis as f32, -0.1);
+    let mut move_delta = Vec2::new(x_axis as f32, -1.);
     if move_delta != Vec2::ZERO {
         move_delta /= move_delta.length();
     }
 
     character_controller.translation =
-        Option::Some(move_delta * character.movement_speed * 2. * time.delta_seconds());
+        Option::Some(move_delta * character.movement_speed * 4. * time.delta_seconds());
 }
