@@ -5,13 +5,16 @@ use bevy::{
     time::Time,
 };
 
-use crate::{CHARACTER_MOVEMENT_SPEED, MAP_MOVEMENT_SPEED};
+use crate::MAP_MOVEMENT_SPEED;
 
 #[derive(Resource)]
 pub struct MapControlOffset(pub f32, pub f32);
 
 #[derive(Resource)]
-pub struct CharacterControlOffset(pub f32);
+pub struct CharacterControlOffset {
+    pub left: i8,
+    pub right: i8,
+}
 
 pub struct ControlPlugin;
 
@@ -24,7 +27,7 @@ impl Plugin for ControlPlugin {
 
 fn startup(mut commands: Commands) {
     commands.insert_resource(MapControlOffset(0., 0.));
-    commands.insert_resource(CharacterControlOffset(0.));
+    commands.insert_resource(CharacterControlOffset { left: 0, right: 0 });
 }
 
 fn map_movement_input(
@@ -48,12 +51,7 @@ fn map_movement_input(
 fn character_movement_input(
     keys: Res<ButtonInput<KeyCode>>,
     mut control_offset: ResMut<CharacterControlOffset>,
-    time: Res<Time>,
 ) {
-    let xdelta = ((keys.pressed(KeyCode::KeyD) as i32) - (keys.pressed(KeyCode::KeyA) as i32))
-        as f32
-        * (CHARACTER_MOVEMENT_SPEED as f32)
-        * time.delta_seconds();
-
-    control_offset.0 = xdelta;
+    control_offset.left = keys.pressed(KeyCode::KeyA) as i8;
+    control_offset.right = keys.pressed(KeyCode::KeyD) as i8
 }

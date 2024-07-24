@@ -138,7 +138,7 @@ fn new_chunk(chunk_index: usize, game_world: &GameWorld, x: f32, y: f32, command
                     match get_block(x, y, &game_world) {
                         Block::Air => {}
                         Block::Solid(SolidBlock::Earth) => {
-                            //parent.spawn((new_earth_block(col_x, col_y), PIXEL_PERFECT_LAYERS));
+                            parent.spawn((new_earth_block(col_x, col_y), PIXEL_PERFECT_LAYERS));
                         }
                         Block::Solid(SolidBlock::Stone) => {
                             parent.spawn((new_stone_block(col_x, col_y), PIXEL_PERFECT_LAYERS));
@@ -164,8 +164,6 @@ fn new_chunk(chunk_index: usize, game_world: &GameWorld, x: f32, y: f32, command
                     local: Transform::from_translation(Vec3::new(0.0, 0.0, 0.0)),
                     ..default()
                 },
-                //Collider::heightfield(game_world.surface_height[(start_x)..(start_x + CHUNK_WIDTH + 1)].iter().map(|height| height * BLOCK_SIZE as f32).collect(), Vec2::new((BLOCK_SIZE * CHUNK_WIDTH) as f32, 1.))
-
                 Collider::polyline(new_chunk_polyline(game_world, chunk_index), Option::None),
             )
                 
@@ -183,7 +181,6 @@ fn new_chunk_polyline(game_world: &GameWorld, chunk_index: usize) -> Vec<Vec2> {
     for x in range_start..(range_start + CHUNK_WIDTH as i32) {
         let y = game_world.surface_height[x as usize].trunc();
         let y2 = game_world.surface_height[(x + 1) as usize].trunc();
-        //println!("{:?}-{:?}", x, range_start, x - range_start);
         vertices.push(Vec2::new(((x - range_start + 1) * (BLOCK_SIZE) as i32 - (BLOCK_SIZE/2) as i32) as f32, y * BLOCK_SIZE as f32));
         if y * BLOCK_SIZE as f32 != y2 * BLOCK_SIZE as f32 {
             vertices.push(Vec2::new(((x - range_start + 1) * (BLOCK_SIZE) as i32 - (BLOCK_SIZE/2) as i32) as f32, y2 * BLOCK_SIZE as f32));

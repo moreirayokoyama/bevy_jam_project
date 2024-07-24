@@ -1,20 +1,25 @@
 use bevy::{
     app::{Plugin, Startup, Update},
     asset::{Asset, AssetServer, Assets, Handle},
+    color::palettes::css::{GREEN, RED},
     math::{Rect, Vec2, Vec3},
-    prelude::{default, Commands, Component, Image, Query, Res, With},
+    prelude::{default, Commands, Component, DetectChanges, Gizmos, Image, Query, Res, With},
     sprite::{Sprite, SpriteBundle},
+    time::Time,
     transform::components::Transform,
 };
 use bevy_rapier2d::prelude::*;
 
 use crate::{
     control::{CharacterControlOffset, MapControlOffset},
-    GameWorld, BLOCK_SIZE, PIXEL_PERFECT_LAYERS, WORLD_BOTTOM_OFFSET_IN_PIXELS, WORLD_CENTER_COL,
+    GameWorld, BLOCK_SIZE, CHARACTER_MOVEMENT_SPEED, PIXEL_PERFECT_LAYERS,
+    WORLD_BOTTOM_OFFSET_IN_PIXELS, WORLD_CENTER_COL,
 };
 
 #[derive(Component, Debug)]
-pub struct Character;
+pub struct Character {
+    movement_speed: f32,
+}
 
 pub struct CharacterPlugin;
 
@@ -27,7 +32,9 @@ impl Plugin for CharacterPlugin {
 
 fn startup(mut commands: Commands, asset_server: Res<AssetServer>, game_world: Res<GameWorld>) {
     commands.spawn((
-        Character,
+        Character {
+            movement_speed: CHARACTER_MOVEMENT_SPEED as f32,
+        },
         SpriteBundle {
             texture: asset_server.load("character/idle/i2.png"),
             transform: Transform::from_xyz(
@@ -47,11 +54,19 @@ fn startup(mut commands: Commands, asset_server: Res<AssetServer>, game_world: R
             },
             ..default()
         },
-        RigidBody::Dynamic,
-        Collider::capsule_y(11.5, 7.),
-        Restitution::coefficient(0.7),
+        RigidBody::KinematicPositionBased,
+        Collider::cuboid(7., 15.),
+        KinematicCharacterController {
+            offset: CharacterLength::Absolute(1.),
+            max_slope_climb_angle: 90_f32.to_radians(),
+            autostep: Option::Some(CharacterAutostep {
+                max_height: CharacterLength::Relative(100.0),
+                min_width: CharacterLength::Relative(0.001),
+                ..default()
+            }),
+            ..default()
+        },
         LockedAxes::ROTATION_LOCKED,
-        Ccd::enabled(),
         PIXEL_PERFECT_LAYERS,
     ));
 }
@@ -66,10 +81,20 @@ fn map_following(
 }
 
 fn movement(
-    mut query: Query<&mut Transform, With<Character>>,
+    mut query: Query<(&Character, &mut KinematicCharacterController)>,
     control_offset: Res<CharacterControlOffset>,
-    images: Res<Assets<Image>>,
+    time: Res<Time>,
+    mut gizmos: Gizmos,
 ) {
-    let mut transform = query.single_mut();
-    transform.translation.x += control_offset.0.trunc();
+    let (character, mut character_controller) = query.single_mut();
+
+    let x_axis = -control_offset.left + control_offset.right;
+
+    let mut move_delta = Vec2::new(x_axis as f32, -0.1);
+    if move_delta != Vec2::ZERO {
+        move_delta /= move_delta.length();
+    }
+
+    character_controller.translation =
+        Option::Some(move_delta * character.movement_speed * 2. * time.delta_seconds());
 }
