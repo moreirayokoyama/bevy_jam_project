@@ -56,12 +56,12 @@ pub const CHUNK_INITIAL_OFFSET: usize = CHUNK_COUNT / 2;
 
 pub const CHUNKS_IN_CANVAS: usize = CANVAS_WIDTH / (CHUNK_WIDTH * BLOCK_SIZE);
 //How many more chunks to be loaded besides the amount enough to fill the canvas
-pub const CHUNKS_LOAD_THRESHOLD: usize = 2;
+pub const CHUNKS_LOAD_THRESHOLD: usize = 4;
 pub const CHUNKS_TO_LOAD: usize = CHUNKS_IN_CANVAS + CHUNKS_LOAD_THRESHOLD;
 
 pub const MAP_MOVEMENT_SPEED_IN_BLOCKS: usize = 4; //camera speed in blocks/second
 pub const MAP_MOVEMENT_SPEED: usize = BLOCK_SIZE * MAP_MOVEMENT_SPEED_IN_BLOCKS; //camera speed in pixels/second
-pub const CHARACTER_MOVEMENT_SPEED: usize = BLOCK_SIZE * 32; //camera speed in blocks/second
+pub const CHARACTER_MOVEMENT_SPEED: usize = MAP_MOVEMENT_SPEED_IN_BLOCKS * 2; //camera speed in blocks/second
 
 pub const DAY_DURATION_IN_SECONDS: usize = 4 * 60;
 pub const WORLD_WIDTH: usize = DAY_DURATION_IN_SECONDS * MAP_MOVEMENT_SPEED_IN_BLOCKS;
@@ -101,7 +101,7 @@ fn main() {
         ))
         //bevy_rapier2d
         .add_plugins(RapierPhysicsPlugin::<NoUserData>::pixels_per_meter(20.0))
-        //.add_plugins(RapierDebugRenderPlugin::default())
+        .add_plugins(RapierDebugRenderPlugin::default())
         //beby_inspector_egui
         .add_plugins(WorldInspectorPlugin::new())
         .run();

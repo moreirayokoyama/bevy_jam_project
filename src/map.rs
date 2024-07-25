@@ -181,11 +181,7 @@ fn new_block_from_tilesheet(
                 custom_size: Some(Vec2::new(BLOCK_SIZE as f32, BLOCK_SIZE as f32)),
                 ..default()
             },
-            transform: Transform::from_translation(Vec3::new(
-                (x * BLOCK_SIZE) as f32,
-                (y * BLOCK_SIZE) as f32,
-                2.,
-            )),
+            transform: Transform::from_translation(GameWorld::get_block_position(x, y).extend(2.)),
             ..default()
         },
         TextureAtlas {
@@ -239,7 +235,10 @@ fn new_chunk(
         .with_children(|parent| {
             if chunk_index == (WORLD_WIDTH / CHUNK_WIDTH / 2) {
                 parent.spawn((
-                    new_stone_block(0, game_world.get_height(WORLD_CENTER_COL) as usize + 10),
+                    new_stone_block(
+                        0,
+                        game_world.get_height_in_blocks(WORLD_CENTER_COL) as usize + 10,
+                    ),
                     PIXEL_PERFECT_LAYERS,
                 ));
             }
@@ -290,20 +289,20 @@ fn new_chunk_polyline(game_world: &GameWorld, chunk_index: usize) -> Vec<Vec2> {
     vertices.push(Vec2::new(-(BLOCK_SIZE as i32 / 2) as f32, 0.0));
     vertices.push(Vec2::new(
         -(BLOCK_SIZE as i32 / 2) as f32,
-        game_world.get_height(range_start as usize).trunc() * BLOCK_SIZE as f32,
+        game_world.get_surface(range_start as usize),
     ));
 
     for x in range_start..(range_start + CHUNK_WIDTH as i32) {
-        let y = game_world.get_height(x as usize).trunc();
-        let y2 = game_world.get_height((x + 1) as usize).trunc();
+        let y = game_world.get_surface(x as usize);
+        let y2 = game_world.get_surface((x + 1) as usize);
         vertices.push(Vec2::new(
             ((x - range_start + 1) * (BLOCK_SIZE) as i32 - (BLOCK_SIZE / 2) as i32) as f32,
-            y * BLOCK_SIZE as f32,
+            y,
         ));
-        if y * BLOCK_SIZE as f32 != y2 * BLOCK_SIZE as f32 {
+        if y * BLOCK_SIZE as f32 != y2 {
             vertices.push(Vec2::new(
                 ((x - range_start + 1) * (BLOCK_SIZE) as i32 - (BLOCK_SIZE / 2) as i32) as f32,
-                y2 * BLOCK_SIZE as f32,
+                y2,
             ));
         }
     }
@@ -363,43 +362,13 @@ fn map_movement(
 }
 
 fn get_block(x: usize, y: usize, game_world: &GameWorld) -> Block {
-    if (y as f32) < game_world.get_height(x) && (y + 1) as f32 >= game_world.get_height(x) {
+    if (y as f32) < game_world.get_height_in_blocks(x)
+        && (y + 1) as f32 >= game_world.get_height_in_blocks(x)
+    {
         Block::Solid(SolidBlock::Surface)
-    } else if (y as f32) < game_world.get_height(x) {
+    } else if (y as f32) < game_world.get_height_in_blocks(x) {
         Block::Solid(SolidBlock::Earth)
     } else {
         Block::Air
     }
 }
-
-// fn create_texture_atlas(
-//     folder: &LoadedFolder,
-//     padding: Option<UVec2>,
-//     textures: &mut ResMut<Assets<Image>>,
-// ) -> (TextureAtlasLayout, Handle<Image>) {
-//     // Build a texture atlas using the individual sprites
-//     let mut builder = TextureAtlasBuilder::default();
-//     let mut texture_atlas_builder = builder.padding(padding.unwrap_or_default());
-//     for handle in folder.handles.iter() {
-//         let id: bevy::prelude::AssetId<Image> = handle.id().typed_unchecked::<Image>();
-//         let Some(texture) = textures.get(id) else {
-//             warn!(
-//                 "{:?} did not resolve to an `Image` asset.",
-//                 handle.path().unwrap()
-//             );
-//             continue;
-//         };
-
-//         texture_atlas_builder.add_texture(Some(id), texture);
-//     }
-
-//     let (texture_atlas_layout, texture) = texture_atlas_builder.build().unwrap();
-//     texture_atlas_layout.
-//     let texture = textures.add(texture);
-
-//     // Update the sampling settings of the texture atlas
-//     let image = textures.get_mut(&texture).unwrap();
-//     image.sampler = ImageSampler::nearest();
-
-//     (texture_atlas_layout, texture)
-// }

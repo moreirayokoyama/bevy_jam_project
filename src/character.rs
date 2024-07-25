@@ -38,7 +38,8 @@ fn startup(mut commands: Commands, asset_server: Res<AssetServer>, game_world: R
             texture: asset_server.load("character/idle/i2.png"),
             transform: Transform::from_xyz(
                 (BLOCK_SIZE as f32) * 0.5,
-                (((game_world.get_height(WORLD_CENTER_COL) as usize + 10) * BLOCK_SIZE) as f32)
+                (((game_world.get_height_in_blocks(WORLD_CENTER_COL) as usize + 10) * BLOCK_SIZE)
+                    as f32)
                     + WORLD_BOTTOM_OFFSET_IN_PIXELS as f32,
                 4.0,
             ),
@@ -96,6 +97,7 @@ fn movement(
         move_delta /= move_delta.length();
     }
 
-    character_controller.translation =
-        Option::Some(move_delta * character.movement_speed * 4. * time.delta_seconds());
+    character_controller.translation = Option::Some(
+        move_delta * character.movement_speed * BLOCK_SIZE as f32 * time.delta_seconds(),
+    );
 }
