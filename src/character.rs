@@ -2,9 +2,9 @@ use bevy::{
     app::{Plugin, Startup, Update},
     asset::{AssetServer, Assets},
     math::{UVec2, Vec2},
-    prelude::{default, Commands, Component, Local, Query, Res, ResMut, With},
+    prelude::{default, Commands, Component, Deref, DerefMut, Local, Query, Res, ResMut, With},
     sprite::{Sprite, SpriteBundle, TextureAtlas, TextureAtlasLayout},
-    time::Time,
+    time::{Time, Timer, TimerMode},
     transform::components::Transform,
 };
 use bevy_rapier2d::prelude::*;
@@ -17,9 +17,34 @@ use crate::{
 
 const GROUND_TIMER: f32 = 0.5;
 
+#[derive(Debug, Default, PartialEq)]
+enum CharacterState {
+    #[default]
+    idle,
+    walking,
+    jumping,
+    falling,
+}
+
+impl CharacterState {
+    fn get_range(&self) -> (usize, usize) {
+        match self {
+            CharacterState::idle => (0, 5),
+            CharacterState::walking => (8, 8),
+            CharacterState::jumping => (16, 1),
+            CharacterState::falling => (24, 1),
+        }
+    }
+}
+
+#[derive(Component, Deref, DerefMut)]
+struct AnimationTimer(Timer);
+
 #[derive(Component, Debug)]
 pub struct Character {
     movement_speed: f32,
+    looking_left: bool,
+    state: CharacterState,
 }
 
 pub struct CharacterPlugin;
@@ -27,7 +52,7 @@ pub struct CharacterPlugin;
 impl Plugin for CharacterPlugin {
     fn build(&self, app: &mut bevy::prelude::App) {
         app.add_systems(Startup, startup)
-            .add_systems(Update, (map_following, movement));
+            .add_systems(Update, (map_following, movement, animate));
     }
 }
 
@@ -43,6 +68,8 @@ fn startup(
     commands.spawn((
         Character {
             movement_speed: CHARACTER_MOVEMENT_SPEED as f32,
+            looking_left: false,
+            state: CharacterState::idle,
         },
         SpriteBundle {
             texture,
@@ -58,7 +85,6 @@ fn startup(
                 custom_size: Option::Some(Vec2::new(CHARACTER_SIZE as f32, CHARACTER_SIZE as f32)),
                 ..default()
             },
-
             ..default()
         },
         TextureAtlas {
@@ -86,6 +112,7 @@ fn startup(
             ..default()
         },
         //LockedAxes::ROTATION_LOCKED,
+        AnimationTimer(Timer::from_seconds(0.1, TimerMode::Repeating)),
         PIXEL_PERFECT_LAYERS,
     ));
 }
@@ -101,17 +128,26 @@ fn map_following(
 
 fn movement(
     mut query: Query<(
-        &Character,
+        &mut Character,
         &mut KinematicCharacterController,
         Option<&KinematicCharacterControllerOutput>,
+        &mut Sprite,
+        &mut TextureAtlas,
     )>,
     control_input: Res<CharacterControlInput>,
     time: Res<Time>,
     mut vertical_movement: Local<f32>,
     mut grounded_timer: Local<f32>,
 ) {
+    let mut next_state = CharacterState::idle;
     let delta_time = time.delta_seconds();
-    let (character, mut character_controller, character_controller_output) = query.single_mut();
+    let (
+        mut character,
+        mut character_controller,
+        character_controller_output,
+        mut sprite,
+        mut atlas,
+    ) = query.single_mut();
 
     let mut move_delta = Vec2::new(
         control_input.x,
@@ -147,4 +183,40 @@ fn movement(
 
     character_controller.translation =
         Some(move_delta * character.movement_speed as f32 * delta_time);
+
+    if *vertical_movement > 0.4 {
+        next_state = CharacterState::jumping;
+    } else if *vertical_movement < -0.4 {
+        next_state = CharacterState::falling;
+    } else if move_delta.x.abs() > f32::EPSILON {
+        next_state = CharacterState::walking;
+    } else {
+        next_state = CharacterState::idle;
+    }
+
+    if next_state != character.state {
+        character.state = next_state;
+        atlas.index = character.state.get_range().0;
+    }
+
+    if control_input.x != 0. {
+        character.looking_left = control_input.x < 0.;
+    }
+
+    sprite.flip_x = character.looking_left;
+}
+
+fn animate(
+    mut query: Query<(&Character, &mut TextureAtlas, &mut AnimationTimer)>,
+    time: Res<Time>,
+) {
+    let (character, mut atlas, mut timer) = query.get_single_mut().unwrap();
+    timer.tick(time.delta());
+    if timer.just_finished() {
+        atlas.index += 1;
+        let (start, length) = character.state.get_range();
+        if atlas.index >= start + length {
+            atlas.index = start;
+        }
+    };
 }
