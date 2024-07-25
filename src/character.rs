@@ -20,19 +20,19 @@ const GROUND_TIMER: f32 = 0.5;
 #[derive(Debug, Default, PartialEq)]
 enum CharacterState {
     #[default]
-    idle,
-    walking,
-    jumping,
-    falling,
+    Idle,
+    Walking,
+    Jumping,
+    Falling,
 }
 
 impl CharacterState {
     fn get_range(&self) -> (usize, usize) {
         match self {
-            CharacterState::idle => (0, 5),
-            CharacterState::walking => (8, 8),
-            CharacterState::jumping => (16, 1),
-            CharacterState::falling => (24, 1),
+            CharacterState::Idle => (0, 5),
+            CharacterState::Walking => (8, 8),
+            CharacterState::Jumping => (16, 1),
+            CharacterState::Falling => (24, 1),
         }
     }
 }
@@ -69,7 +69,7 @@ fn startup(
         Character {
             movement_speed: CHARACTER_MOVEMENT_SPEED as f32,
             looking_left: false,
-            state: CharacterState::idle,
+            state: CharacterState::Idle,
         },
         SpriteBundle {
             texture,
@@ -139,7 +139,6 @@ fn movement(
     mut vertical_movement: Local<f32>,
     mut grounded_timer: Local<f32>,
 ) {
-    let mut next_state = CharacterState::idle;
     let delta_time = time.delta_seconds();
     let (
         mut character,
@@ -184,15 +183,15 @@ fn movement(
     character_controller.translation =
         Some(move_delta * character.movement_speed as f32 * delta_time);
 
-    if *vertical_movement > 0.4 {
-        next_state = CharacterState::jumping;
+    let next_state = if *vertical_movement > 0.4 {
+        CharacterState::Jumping
     } else if *vertical_movement < -0.4 {
-        next_state = CharacterState::falling;
+        CharacterState::Falling
     } else if move_delta.x.abs() > f32::EPSILON {
-        next_state = CharacterState::walking;
+        CharacterState::Walking
     } else {
-        next_state = CharacterState::idle;
-    }
+        CharacterState::Idle
+    };
 
     if next_state != character.state {
         character.state = next_state;
