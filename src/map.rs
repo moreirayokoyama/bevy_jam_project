@@ -1,14 +1,13 @@
 use bevy::{
     app::{Plugin, Startup, Update},
-    asset::AssetServer,
+    asset::{AssetServer, Assets, Handle, LoadedFolder},
     color::Color,
     hierarchy::{BuildChildren, DespawnRecursiveExt},
-    math::{Vec2, Vec3},
-    prelude::{
-        default, Commands, Component, Entity, IntoSystemConfigs, Query, Res, ResMut, Resource,
-        SpatialBundle, TransformBundle,
-    },
-    sprite::{Sprite, SpriteBundle},
+    log::warn,
+    math::{Rect, UVec2, Vec2, Vec3},
+    prelude::*,
+    render::texture::ImageSampler,
+    sprite::{Sprite, SpriteBundle, TextureAtlas, TextureAtlasBuilder, TextureAtlasLayout},
     transform::components::Transform,
 };
 use bevy_rapier2d::prelude::Collider;
@@ -21,8 +20,48 @@ use crate::{
 
 const MAX_OFFSET: f32 = ((CHUNKS_TO_LOAD * CHUNK_WIDTH * BLOCK_SIZE) / 2) as f32;
 
+pub struct MapPlugin;
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, States)]
+enum AppState {
+    #[default]
+    Setup,
+    Finished,
+}
+
+impl Plugin for MapPlugin {
+    fn build(&self, app: &mut bevy::prelude::App) {
+        app.init_state::<AppState>()
+            .add_systems(OnEnter(AppState::Setup), initialize)
+            .add_systems(
+                Update,
+                (
+                    check_textures.run_if(in_state(AppState::Setup)),
+                    map_movement.run_if(in_state(AppState::Finished)),
+                )
+                    .chain(),
+            )
+            .add_systems(
+                OnEnter(AppState::Finished),
+                (load_textures, startup).chain(),
+            );
+    }
+}
+
 #[derive(Resource)]
 pub struct CurrentChunkOffset(usize);
+
+#[derive(Resource)]
+struct TilesFolder(Handle<LoadedFolder>);
+
+#[derive(Resource)]
+struct Tiles {
+    standard: Handle<Image>,
+    white: Handle<Image>,
+}
+
+#[derive(Resource)]
+struct TilesAtlasLayout(Handle<TextureAtlasLayout>);
 
 #[derive(Component)]
 struct Chunk {
@@ -44,26 +83,48 @@ enum SolidBlock {
     Earth,
 }
 
-pub struct MapPlugin;
-
-impl Plugin for MapPlugin {
-    fn build(&self, app: &mut bevy::prelude::App) {
-        app.add_systems(Startup, (initialize, startup).chain())
-            .add_systems(Update, map_movement);
-    }
+fn initialize(mut commands: Commands, asset_server: Res<AssetServer>) {
+    commands.insert_resource(CurrentChunkOffset(CHUNK_INITIAL_OFFSET));
+    let tiles_folder = TilesFolder(asset_server.load_folder("bgp_catdev/Tillesets"));
+    commands.insert_resource(tiles_folder);
 }
 
-fn initialize(mut commands: Commands) {
-    commands.insert_resource(CurrentChunkOffset(CHUNK_INITIAL_OFFSET));
+fn load_textures(
+    tiles_folder: Res<TilesFolder>,
+    loaded_folders: Res<Assets<LoadedFolder>>,
+    mut texture_atlases: ResMut<Assets<TextureAtlasLayout>>,
+    mut textures: ResMut<Assets<Image>>,
+    asset_server: Res<AssetServer>,
+    mut commands: Commands,
+) {
+    let atlas_layout = TextureAtlasLayout::from_grid(UVec2::new(16, 16), 7, 5, None, None);
+    commands.insert_resource(TilesAtlasLayout(texture_atlases.add(atlas_layout)));
+    commands.insert_resource(Tiles {
+        standard: asset_server.load("bgp_catdev/Tillesets/Basic_GrassAndProps.png"),
+        white: asset_server.load("bgp_catdev/Tillesets/Basic_GrassAndPropsWhiteVer.png"),
+    });
+}
+
+fn check_textures(
+    mut next_state: ResMut<NextState<AppState>>,
+    tiles_folder: Res<TilesFolder>,
+    mut events: EventReader<AssetEvent<LoadedFolder>>,
+) {
+    // Advance the `AppState` once all sprite handles have been loaded by the `AssetServer`
+    for event in events.read() {
+        if event.is_loaded_with_dependencies(&tiles_folder.0) {
+            next_state.set(AppState::Finished);
+        }
+    }
 }
 
 fn startup(
     mut commands: Commands,
     game_world: Res<GameWorld>,
     current_chunk_offset: Res<CurrentChunkOffset>,
-    asset_server: Res<AssetServer>,
+    atlas_layout: Res<TilesAtlasLayout>,
+    tiles: Res<Tiles>,
 ) {
-    let _ = asset_server;
     let half_chunks_to_load = CHUNKS_TO_LOAD as i32 / 2;
     let remaining_chunks_to_load = CHUNKS_TO_LOAD as i32 % 2;
 
@@ -72,23 +133,70 @@ fn startup(
         let x: f32 = (i * (CHUNK_WIDTH * BLOCK_SIZE) as i32) as f32;
         let y: f32 = (WORLD_BOTTOM_OFFSET * BLOCK_SIZE as i32) as f32;
 
-        new_chunk(chunk_index, &game_world, x, y, &mut commands);
+        new_chunk(
+            chunk_index,
+            &game_world,
+            x,
+            y,
+            &mut commands,
+            &tiles,
+            atlas_layout.0.clone(),
+        );
     }
 }
 
-fn new_earth_block(x: usize, y: usize) -> SpriteBundle {
-    new_block(x, y, Color::linear_rgb(0.34375, 0.22265, 0.15234))
+fn new_earth_block(
+    x: usize,
+    y: usize,
+    atlas_layout_handle: Handle<TextureAtlasLayout>,
+    tiles: &Tiles,
+) -> (SpriteBundle, TextureAtlas) {
+    new_block_from_tilesheet(x, y, tiles.standard.clone(), atlas_layout_handle.clone(), 8)
 }
 
 fn new_stone_block(x: usize, y: usize) -> SpriteBundle {
-    new_block(x, y, Color::linear_rgb(0.5, 0.5, 0.5))
+    new_block_color(x, y, Color::linear_rgb(0.5, 0.5, 0.5))
 }
 
-fn new_surface_block(x: usize, y: usize) -> SpriteBundle {
-    new_block(x, y, Color::linear_rgb(0.0, 0.35, 0.0))
+fn new_surface_block(
+    x: usize,
+    y: usize,
+    atlas_layout_handle: Handle<TextureAtlasLayout>,
+    tiles: &Tiles,
+) -> (SpriteBundle, TextureAtlas) {
+    new_block_from_tilesheet(x, y, tiles.standard.clone(), atlas_layout_handle.clone(), 1)
 }
 
-fn new_block(x: usize, y: usize, color: Color) -> SpriteBundle {
+fn new_block_from_tilesheet(
+    x: usize,
+    y: usize,
+    tiles: Handle<Image>,
+    atlas_handle: Handle<TextureAtlasLayout>,
+    index: usize,
+) -> (SpriteBundle, TextureAtlas) {
+    (
+        SpriteBundle {
+            texture: tiles,
+            sprite: Sprite {
+                custom_size: Some(Vec2::new(BLOCK_SIZE as f32, BLOCK_SIZE as f32)),
+                ..default()
+            },
+            transform: Transform::from_translation(Vec3::new(
+                (x * BLOCK_SIZE) as f32,
+                (y * BLOCK_SIZE) as f32,
+                2.,
+            )),
+            ..default()
+        },
+        TextureAtlas {
+            layout: atlas_handle,
+            index: index,
+            ..Default::default()
+        },
+    )
+}
+
+fn new_block_color(x: usize, y: usize, color: Color) -> SpriteBundle {
     SpriteBundle {
         sprite: Sprite {
             color: color,
@@ -104,7 +212,15 @@ fn new_block(x: usize, y: usize, color: Color) -> SpriteBundle {
     }
 }
 
-fn new_chunk(chunk_index: usize, game_world: &GameWorld, x: f32, y: f32, commands: &mut Commands) {
+fn new_chunk(
+    chunk_index: usize,
+    game_world: &GameWorld,
+    x: f32,
+    y: f32,
+    commands: &mut Commands,
+    tiles: &Tiles,
+    atlas_layout_handle: Handle<TextureAtlasLayout>,
+) {
     let start_x = CHUNK_WIDTH * chunk_index;
     let start_y: usize = 0;
 
@@ -135,18 +251,24 @@ fn new_chunk(chunk_index: usize, game_world: &GameWorld, x: f32, y: f32, command
                     match get_block(x, y, &game_world) {
                         Block::Air => {}
                         Block::Solid(SolidBlock::Earth) => {
-                            parent.spawn((new_earth_block(col_x, col_y), PIXEL_PERFECT_LAYERS));
+                            parent.spawn((
+                                new_earth_block(col_x, col_y, atlas_layout_handle.clone(), &tiles),
+                                PIXEL_PERFECT_LAYERS,
+                            ));
                         }
                         Block::Solid(SolidBlock::Stone) => {
                             parent.spawn((new_stone_block(col_x, col_y), PIXEL_PERFECT_LAYERS));
                         }
                         Block::Solid(SolidBlock::Surface) => {
-                            let v = if col_x == 0 {
-                                (new_stone_block(col_x, col_y), PIXEL_PERFECT_LAYERS)
-                            } else {
-                                (new_surface_block(col_x, col_y), PIXEL_PERFECT_LAYERS)
-                            };
-                            parent.spawn(v);
+                            parent.spawn((
+                                new_surface_block(
+                                    col_x,
+                                    col_y,
+                                    atlas_layout_handle.clone(),
+                                    &tiles,
+                                ),
+                                PIXEL_PERFECT_LAYERS,
+                            ));
                         }
                     }
                 }
@@ -199,6 +321,8 @@ fn map_movement(
     mut commands: Commands,
     game_world: Res<GameWorld>,
     mut current_chunk_offset: ResMut<CurrentChunkOffset>,
+    tiles: Res<Tiles>,
+    atlas_layout_handle: Res<TilesAtlasLayout>,
 ) {
     for (entity, mut transform, mut chunk) in query.iter_mut() {
         transform.translation.x -= control_offset.0;
@@ -229,6 +353,8 @@ fn map_movement(
                 new_chunk_offset,
                 chunk.y_offset,
                 &mut commands,
+                &tiles,
+                atlas_layout_handle.0.clone(),
             );
 
             commands.entity(entity).despawn_recursive();
@@ -245,3 +371,35 @@ fn get_block(x: usize, y: usize, game_world: &GameWorld) -> Block {
         Block::Air
     }
 }
+
+// fn create_texture_atlas(
+//     folder: &LoadedFolder,
+//     padding: Option<UVec2>,
+//     textures: &mut ResMut<Assets<Image>>,
+// ) -> (TextureAtlasLayout, Handle<Image>) {
+//     // Build a texture atlas using the individual sprites
+//     let mut builder = TextureAtlasBuilder::default();
+//     let mut texture_atlas_builder = builder.padding(padding.unwrap_or_default());
+//     for handle in folder.handles.iter() {
+//         let id: bevy::prelude::AssetId<Image> = handle.id().typed_unchecked::<Image>();
+//         let Some(texture) = textures.get(id) else {
+//             warn!(
+//                 "{:?} did not resolve to an `Image` asset.",
+//                 handle.path().unwrap()
+//             );
+//             continue;
+//         };
+
+//         texture_atlas_builder.add_texture(Some(id), texture);
+//     }
+
+//     let (texture_atlas_layout, texture) = texture_atlas_builder.build().unwrap();
+//     texture_atlas_layout.
+//     let texture = textures.add(texture);
+
+//     // Update the sampling settings of the texture atlas
+//     let image = textures.get_mut(&texture).unwrap();
+//     image.sampler = ImageSampler::nearest();
+
+//     (texture_atlas_layout, texture)
+// }

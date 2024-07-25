@@ -45,7 +45,7 @@ pub const CANVAS_HEIGHT: usize = 432; //Canvas height in pixels
                                       //Canvas width based on height to keep 16:9 aspect ratio
 pub const CANVAS_WIDTH: usize = CANVAS_HEIGHT / 9 * 16;
 
-pub const BLOCK_SIZE: usize = 8; //block size in pixels (height and width)
+pub const BLOCK_SIZE: usize = 32; //block size in pixels (height and width)
 
 pub const BLOCK_X_COUNT: usize = CANVAS_WIDTH / BLOCK_SIZE;
 pub const BLOCK_Y_COUNT: usize = CANVAS_HEIGHT / BLOCK_SIZE;
@@ -101,7 +101,7 @@ fn main() {
         ))
         //bevy_rapier2d
         .add_plugins(RapierPhysicsPlugin::<NoUserData>::pixels_per_meter(20.0))
-        .add_plugins(RapierDebugRenderPlugin::default())
+        //.add_plugins(RapierDebugRenderPlugin::default())
         //beby_inspector_egui
         .add_plugins(WorldInspectorPlugin::new())
         .run();
