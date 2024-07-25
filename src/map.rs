@@ -1,6 +1,6 @@
 use bevy::{
     app::{Plugin, Update},
-    asset::{AssetServer, Assets, Handle, LoadedFolder},
+    asset::{AssetServer, Assets, Handle},
     color::Color,
     hierarchy::{BuildChildren, DespawnRecursiveExt},
     math::{UVec2, Vec2, Vec3},
@@ -20,37 +20,15 @@ const MAX_OFFSET: f32 = ((CHUNKS_TO_LOAD * CHUNK_WIDTH * BLOCK_SIZE) / 2) as f32
 
 pub struct MapPlugin;
 
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, States)]
-enum AppState {
-    #[default]
-    Setup,
-    Finished,
-}
-
 impl Plugin for MapPlugin {
     fn build(&self, app: &mut bevy::prelude::App) {
-        app.init_state::<AppState>()
-            .add_systems(OnEnter(AppState::Setup), initialize)
-            .add_systems(
-                Update,
-                (
-                    check_textures.run_if(in_state(AppState::Setup)),
-                    map_movement.run_if(in_state(AppState::Finished)),
-                )
-                    .chain(),
-            )
-            .add_systems(
-                OnEnter(AppState::Finished),
-                (load_textures, startup).chain(),
-            );
+        app.add_systems(Startup, (initialize, load_textures, startup).chain())
+            .add_systems(Update, map_movement);
     }
 }
 
 #[derive(Resource)]
 pub struct CurrentChunkOffset(usize);
-
-#[derive(Resource)]
-struct TilesFolder(Handle<LoadedFolder>);
 
 #[derive(Resource)]
 struct Tiles {
@@ -81,10 +59,8 @@ enum SolidBlock {
     Earth,
 }
 
-fn initialize(mut commands: Commands, asset_server: Res<AssetServer>) {
+fn initialize(mut commands: Commands) {
     commands.insert_resource(CurrentChunkOffset(CHUNK_INITIAL_OFFSET));
-    let tiles_folder = TilesFolder(asset_server.load_folder("bgp_catdev/Tillesets"));
-    commands.insert_resource(tiles_folder);
 }
 
 fn load_textures(
@@ -98,19 +74,6 @@ fn load_textures(
         standard: asset_server.load("bgp_catdev/Tillesets/Basic_GrassAndProps.png"),
         white: asset_server.load("bgp_catdev/Tillesets/Basic_GrassAndPropsWhiteVer.png"),
     });
-}
-
-fn check_textures(
-    mut next_state: ResMut<NextState<AppState>>,
-    tiles_folder: Res<TilesFolder>,
-    mut events: EventReader<AssetEvent<LoadedFolder>>,
-) {
-    // Advance the `AppState` once all sprite handles have been loaded by the `AssetServer`
-    for event in events.read() {
-        if event.is_loaded_with_dependencies(&tiles_folder.0) {
-            next_state.set(AppState::Finished);
-        }
-    }
 }
 
 fn startup(
