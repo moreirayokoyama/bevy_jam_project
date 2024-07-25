@@ -69,12 +69,12 @@ fn startup(
         KinematicCharacterController {
             custom_shape: Option::Some((
                 Collider::cuboid((CHARACTER_SIZE / 2) as f32, (CHARACTER_SIZE / 2) as f32),
-                Vec2::new(0., 5.),
+                Vec2::new(0., CHARACTER_SIZE as f32 * 0.04),
                 0.,
             )),
             offset: CharacterLength::Absolute(0.1),
             autostep: Option::Some(CharacterAutostep {
-                max_height: CharacterLength::Relative(0.4),
+                max_height: CharacterLength::Relative(0.6),
                 min_width: CharacterLength::Relative(0.1),
                 ..default()
             }),
