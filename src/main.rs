@@ -36,7 +36,7 @@ use bevy_rapier2d::{
 use game::GamePlugins;
 
 use game_world::GameWorld;
-use noise::{core::perlin::perlin_2d, permutationtable::PermutationTable, utils::*, Fbm, Worley};
+use noise::{utils::*, Fbm, Worley};
 
 pub const PIXEL_PERFECT_LAYERS: RenderLayers = RenderLayers::layer(0);
 pub const HIGH_RES_LAYERS: RenderLayers = RenderLayers::layer(1);
@@ -108,7 +108,6 @@ fn main() {
 }
 
 fn generate_noise_map() -> NoiseMap {
-    let hasher = PermutationTable::new(0);
     let fbm = Fbm::<Worley>::new(0);
     let bounds = WORLD_WIDTH as f64 * 0.0025;
     let r = PlaneMapBuilder::new(fbm) //new_fn(|point| perlin_2d(point.into(), &hasher))

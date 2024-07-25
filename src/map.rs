@@ -1,13 +1,11 @@
 use bevy::{
-    app::{Plugin, Startup, Update},
+    app::{Plugin, Update},
     asset::{AssetServer, Assets, Handle, LoadedFolder},
     color::Color,
     hierarchy::{BuildChildren, DespawnRecursiveExt},
-    log::warn,
-    math::{Rect, UVec2, Vec2, Vec3},
+    math::{UVec2, Vec2, Vec3},
     prelude::*,
-    render::texture::ImageSampler,
-    sprite::{Sprite, SpriteBundle, TextureAtlas, TextureAtlasBuilder, TextureAtlasLayout},
+    sprite::{Sprite, SpriteBundle, TextureAtlas, TextureAtlasLayout},
     transform::components::Transform,
 };
 use bevy_rapier2d::prelude::Collider;
@@ -90,10 +88,7 @@ fn initialize(mut commands: Commands, asset_server: Res<AssetServer>) {
 }
 
 fn load_textures(
-    tiles_folder: Res<TilesFolder>,
-    loaded_folders: Res<Assets<LoadedFolder>>,
     mut texture_atlases: ResMut<Assets<TextureAtlasLayout>>,
-    mut textures: ResMut<Assets<Image>>,
     asset_server: Res<AssetServer>,
     mut commands: Commands,
 ) {

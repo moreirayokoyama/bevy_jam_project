@@ -28,10 +28,6 @@ impl GameWorld {
         )
     }
 
-    pub fn get_block_surface(y: usize) -> f32 {
-        ((y * BLOCK_SIZE + BLOCK_SIZE / 2) as f32).trunc()
-    }
-
     pub fn get_surface(&self, x: usize) -> f32 {
         (self.get_height_in_blocks(x) * (BLOCK_SIZE as f32)) - ((BLOCK_SIZE / 2) as f32).trunc()
     }
