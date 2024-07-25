@@ -2,7 +2,7 @@ use bevy::{
     app::{Plugin, Startup, Update},
     asset::{AssetServer, Assets},
     math::{UVec2, Vec2},
-    prelude::{default, Commands, Component, Query, Res, ResMut, With},
+    prelude::{default, Commands, Component, Local, Query, Res, ResMut, With},
     sprite::{Sprite, SpriteBundle, TextureAtlas, TextureAtlasLayout},
     time::Time,
     transform::components::Transform,
@@ -10,10 +10,12 @@ use bevy::{
 use bevy_rapier2d::prelude::*;
 
 use crate::{
-    control::{CharacterControlOffset, MapControlOffset},
-    GameWorld, BLOCK_SIZE, CHARACTER_MOVEMENT_SPEED, CHARACTER_SIZE, PIXEL_PERFECT_LAYERS,
-    WORLD_BOTTOM_OFFSET_IN_PIXELS, WORLD_CENTER_COL,
+    control::{CharacterControlInput, MapControlOffset},
+    GameWorld, BLOCK_SIZE, CHARACTER_JUMP_SPEED, CHARACTER_MOVEMENT_SPEED, CHARACTER_SIZE, GRAVITY,
+    PIXEL_PERFECT_LAYERS, WORLD_BOTTOM_OFFSET_IN_PIXELS, WORLD_CENTER_COL,
 };
+
+const GROUND_TIMER: f32 = 0.5;
 
 #[derive(Component, Debug)]
 pub struct Character {
@@ -98,20 +100,51 @@ fn map_following(
 }
 
 fn movement(
-    mut query: Query<(&Character, &mut KinematicCharacterController)>,
-    control_offset: Res<CharacterControlOffset>,
+    mut query: Query<(
+        &Character,
+        &mut KinematicCharacterController,
+        Option<&KinematicCharacterControllerOutput>,
+    )>,
+    control_input: Res<CharacterControlInput>,
     time: Res<Time>,
+    mut vertical_movement: Local<f32>,
+    mut grounded_timer: Local<f32>,
 ) {
-    let (character, mut character_controller) = query.single_mut();
+    let delta_time = time.delta_seconds();
+    let (character, mut character_controller, character_controller_output) = query.single_mut();
 
-    let x_axis = -control_offset.left + control_offset.right;
+    let mut move_delta = Vec2::new(
+        control_input.x,
+        0.0, //-(character.movement_speed * BLOCK_SIZE as f32 * delta_time),
+    );
 
-    let mut move_delta = Vec2::new(x_axis as f32, -1.);
+    let jump_speed = control_input.y * CHARACTER_JUMP_SPEED as f32;
+
     if move_delta != Vec2::ZERO {
         move_delta /= move_delta.length();
     }
 
-    character_controller.translation = Option::Some(
-        move_delta * character.movement_speed * BLOCK_SIZE as f32 * time.delta_seconds(),
-    );
+    if character_controller_output
+        .map(|o| o.grounded)
+        .unwrap_or(false)
+    {
+        *grounded_timer = GROUND_TIMER;
+        *vertical_movement = 0.0;
+    }
+
+    if *grounded_timer > 0.0 {
+        *grounded_timer -= delta_time;
+        // If we jump we clear the grounded tolerance
+        if jump_speed > 0.0 {
+            *vertical_movement = jump_speed;
+            *grounded_timer = 0.0;
+        }
+    }
+
+    move_delta.y = *vertical_movement;
+
+    *vertical_movement += GRAVITY * delta_time * character_controller.custom_mass.unwrap_or(1.0);
+
+    character_controller.translation =
+        Some(move_delta * character.movement_speed as f32 * delta_time);
 }

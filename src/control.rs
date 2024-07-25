@@ -11,9 +11,9 @@ use crate::MAP_MOVEMENT_SPEED;
 pub struct MapControlOffset(pub f32, pub f32);
 
 #[derive(Resource)]
-pub struct CharacterControlOffset {
-    pub left: i8,
-    pub right: i8,
+pub struct CharacterControlInput {
+    pub x: f32,
+    pub y: f32,
 }
 
 pub struct ControlPlugin;
@@ -27,7 +27,7 @@ impl Plugin for ControlPlugin {
 
 fn startup(mut commands: Commands) {
     commands.insert_resource(MapControlOffset(0., 0.));
-    commands.insert_resource(CharacterControlOffset { left: 0, right: 0 });
+    commands.insert_resource(CharacterControlInput { x: 0., y: 0. });
 }
 
 fn map_movement_input(
@@ -50,8 +50,9 @@ fn map_movement_input(
 
 fn character_movement_input(
     keys: Res<ButtonInput<KeyCode>>,
-    mut control_offset: ResMut<CharacterControlOffset>,
+    mut control_input: ResMut<CharacterControlInput>,
 ) {
-    control_offset.left = keys.pressed(KeyCode::KeyA) as i8;
-    control_offset.right = keys.pressed(KeyCode::KeyD) as i8
+    control_input.x =
+        (-(keys.pressed(KeyCode::KeyA) as i8) + (keys.pressed(KeyCode::KeyD) as i8)) as f32;
+    control_input.y = (keys.just_pressed(KeyCode::Space) as i8) as f32;
 }
