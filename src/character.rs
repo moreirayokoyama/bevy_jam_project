@@ -1,8 +1,8 @@
 use bevy::{
     app::{Plugin, Startup, Update},
-    asset::{AssetServer, Assets, Handle},
-    math::{Rect, UVec2, Vec2},
-    prelude::{default, Commands, Component, Image, Query, Res, ResMut, Resource, With},
+    asset::{AssetServer, Assets},
+    math::{UVec2, Vec2},
+    prelude::{default, Commands, Component, Query, Res, ResMut, With},
     sprite::{Sprite, SpriteBundle, TextureAtlas, TextureAtlasLayout},
     time::Time,
     transform::components::Transform,
