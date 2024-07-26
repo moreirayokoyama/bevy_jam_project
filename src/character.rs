@@ -29,10 +29,10 @@ enum CharacterState {
 impl CharacterState {
     fn get_range(&self) -> (usize, usize) {
         match self {
-            CharacterState::Idle => (0, 5),
-            CharacterState::Walking => (8, 8),
-            CharacterState::Jumping => (16, 1),
-            CharacterState::Falling => (24, 1),
+            CharacterState::Idle => (0, 4),
+            CharacterState::Walking => (8, 15),
+            CharacterState::Jumping => (16, 16),
+            CharacterState::Falling => (24, 24),
         }
     }
 }
@@ -96,7 +96,7 @@ fn startup(
         Collider::capsule_y((CHARACTER_SIZE / 16) as f32, (CHARACTER_SIZE / 2) as f32),
         KinematicCharacterController {
             custom_shape: Option::Some((
-                Collider::cuboid((CHARACTER_SIZE / 2) as f32, (CHARACTER_SIZE / 2) as f32),
+                Collider::cuboid((CHARACTER_SIZE / 3) as f32, (CHARACTER_SIZE / 2) as f32),
                 Vec2::new(0., CHARACTER_SIZE as f32 * 0.04),
                 0.,
             )),
@@ -176,12 +176,9 @@ fn movement(
         }
     }
 
-    move_delta.y = *vertical_movement;
-
     *vertical_movement += GRAVITY * delta_time * character_controller.custom_mass.unwrap_or(1.0);
 
-    character_controller.translation =
-        Some(move_delta * character.movement_speed as f32 * delta_time);
+    move_delta.y = *vertical_movement;
 
     let next_state = if *vertical_movement > 0.4 {
         CharacterState::Jumping
@@ -203,6 +200,40 @@ fn movement(
     }
 
     sprite.flip_x = character.looking_left;
+
+    if let Some(o) = character_controller_output {
+        for c in o.collisions.iter() {
+            if let Some(d) = c.hit.details {
+                if (character.looking_left && d.normal1.x > 0.5)
+                    || (!character.looking_left && d.normal1.x < -0.5)
+                {
+                    if character.state == CharacterState::Falling {
+                        if control_input.y >= 0.5 {
+                            move_delta.x = -move_delta.x * 30.;
+                            if jump_speed > 0.0 {
+                                *vertical_movement = jump_speed;
+                                *grounded_timer = 0.0;
+                            }
+                            *vertical_movement += GRAVITY
+                                * delta_time
+                                * character_controller.custom_mass.unwrap_or(1.0);
+
+                            move_delta.y = *vertical_movement;
+                        } else {
+                            move_delta.y /= 20.;
+                        }
+                    } else {
+                        if control_input.y >= 0.5 {
+                            move_delta.x = -move_delta.x * 30.;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    character_controller.translation =
+        Some(move_delta * character.movement_speed as f32 * delta_time);
 }
 
 fn animate(
@@ -212,10 +243,11 @@ fn animate(
     let (character, mut atlas, mut timer) = query.get_single_mut().unwrap();
     timer.tick(time.delta());
     if timer.just_finished() {
-        atlas.index += 1;
-        let (start, length) = character.state.get_range();
-        if atlas.index >= start + length {
-            atlas.index = start;
-        }
+        let (first, last) = character.state.get_range();
+        atlas.index = if atlas.index == last {
+            first
+        } else {
+            atlas.index + 1
+        };
     };
 }
