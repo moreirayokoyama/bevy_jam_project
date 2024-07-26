@@ -1,4 +1,5 @@
 use noise::utils::{NoiseImage, NoiseMap};
+use rand::Rng;
 
 #[allow(dead_code)]
 pub fn write_example_to_file(map: &NoiseMap, filename: &str) {
@@ -22,4 +23,11 @@ pub fn write_image_to_file(image: &NoiseImage, filename: &str) {
         .expect("Failed to create directories.");
 
     image.write_to_file(&target)
+}
+
+#[allow(dead_code)]
+pub fn rand_list_item<T: Copy>(list: &[T]) -> T {
+    let mut rng = rand::thread_rng();
+    let index = rng.gen_range(0..list.len());
+    list[index]
 }
