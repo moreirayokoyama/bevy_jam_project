@@ -5,7 +5,7 @@ use bevy::{
     time::Time,
 };
 
-use crate::MAP_MOVEMENT_SPEED;
+use crate::CAMERA_REGULAR_SPEED;
 
 #[derive(Resource)]
 pub struct MapControlOffset(pub f32, pub f32);
@@ -37,11 +37,11 @@ fn map_movement_input(
 ) {
     let xdelta = (((keys.pressed(KeyCode::ArrowRight) as i32)
         - (keys.pressed(KeyCode::ArrowLeft) as i32))
-        * (MAP_MOVEMENT_SPEED as i32)) as f32
+        * (CAMERA_REGULAR_SPEED as i32)) as f32
         * time.delta_seconds();
     let ydelta = (((keys.pressed(KeyCode::ArrowUp) as i32)
         - (keys.pressed(KeyCode::ArrowDown) as i32))
-        * (MAP_MOVEMENT_SPEED as i32)) as f32
+        * (CAMERA_REGULAR_SPEED as i32)) as f32
         * time.delta_seconds();
 
     control_offset.0 = xdelta;

@@ -1,10 +1,12 @@
+use std::default;
+
 use bevy::{
     app::{Plugin, Startup, Update},
     asset::Assets,
     math::Vec3,
     prelude::{
-        default, Camera2dBundle, Commands, Component, EventReader, Query, ResMut, Transform, With,
-        Without,
+        default, Camera2dBundle, Commands, Component, EventReader, IntoSystemConfigs, Query,
+        ResMut, Transform, With, Without,
     },
     render::{
         camera::{Camera, OrthographicProjection, RenderTarget},
@@ -19,9 +21,9 @@ use bevy::{
 };
 
 use crate::{
-    character::Character, map::Chunk, BLOCK_SIZE, CANVAS_HEIGHT, CANVAS_WIDTH,
-    CHARACTER_MOVEMENT_SPEED, CHUNKS_TO_LOAD, CHUNK_WIDTH, HIGH_RES_LAYERS, MAP_MOVEMENT_SPEED,
-    PIXEL_PERFECT_LAYERS,
+    character::Character, map::Chunk, BLOCK_SIZE, CAMERA_REGULAR_SPEED, CANVAS_HEIGHT,
+    CANVAS_WIDTH, CHARACTER_MOVEMENT_SPEED, CHARACTER_ROAMING_THRESHOLD, CHUNKS_TO_LOAD,
+    CHUNK_WIDTH, HIGH_RES_LAYERS, PIXEL_PERFECT_LAYERS,
 };
 
 #[derive(Component)]
@@ -35,6 +37,18 @@ pub struct InGameCamera {
     pub is_going_right: bool,
     pub translation: Vec3,
     pub chunk_unload_after: f32,
+    pub state: CameraState,
+    pub char_roaming_threshold: f32,
+    pub catching_up: f32,
+    pub speed: f32,
+}
+
+#[derive(PartialEq, Default)]
+pub enum CameraState {
+    #[default]
+    Waiting,
+    Moving,
+    CatchingUp,
 }
 
 pub struct CameraPlugin;
@@ -91,6 +105,10 @@ fn startup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
             is_going_right: false,
             translation: Vec3::ZERO,
             chunk_unload_after: (((CHUNKS_TO_LOAD / 2) * CHUNK_WIDTH * BLOCK_SIZE) as f32),
+            state: CameraState::Waiting,
+            char_roaming_threshold: CHARACTER_ROAMING_THRESHOLD as f32,
+            catching_up: 0.,
+            speed: 0.,
         },
         PIXEL_PERFECT_LAYERS,
     ));
@@ -134,10 +152,30 @@ fn move_camera(
 ) {
     let (mut transform, mut projection, mut camera) = cam_query.single_mut();
     let char = char_query.single();
+    if camera.state == CameraState::Waiting {
+        let char_offset = char.translation.x.abs();
+        if char_offset > camera.char_roaming_threshold {
+            camera.is_going_right = char.translation.x > 0.;
+            camera.state = CameraState::CatchingUp;
+            camera.catching_up = char_offset;
+        }
+        return;
+    } else if camera.state == CameraState::CatchingUp {
+        camera.speed = 10.
+            * CAMERA_REGULAR_SPEED as f32
+            * (projection.scale / ((CHARACTER_MOVEMENT_SPEED as f32) * 2.));
+        camera.catching_up -= camera.speed.abs();
+        if camera.catching_up <= 0. {
+            camera.catching_up = 0.;
+            camera.state = CameraState::Moving;
+        }
+    } else {
+        camera.speed = CAMERA_REGULAR_SPEED as f32
+            * (projection.scale / ((CHARACTER_MOVEMENT_SPEED as f32) * 2.));
+    }
+
     let direction = if camera.is_going_right { 1. } else { -1. };
-    let x_offset = direction
-        * MAP_MOVEMENT_SPEED as f32
-        * (projection.scale / ((CHARACTER_MOVEMENT_SPEED as f32) * 2.));
+    let x_offset = direction * camera.speed;
     transform.translation.x += x_offset;
     transform.translation.y = char.translation.y;
     camera.translation = transform.translation.clone();

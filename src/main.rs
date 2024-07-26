@@ -54,11 +54,12 @@ pub const CHUNK_INITIAL_OFFSET: usize = CHUNK_COUNT / 2;
 pub const CHUNKS_TO_LOAD: usize = 16;
 
 pub const MAP_MOVEMENT_SPEED_IN_BLOCKS: usize = 4; //camera speed in blocks/second
-pub const MAP_MOVEMENT_SPEED: usize = BLOCK_SIZE * MAP_MOVEMENT_SPEED_IN_BLOCKS; //camera speed in pixels/second
+pub const CAMERA_REGULAR_SPEED: usize = BLOCK_SIZE * MAP_MOVEMENT_SPEED_IN_BLOCKS; //camera speed in pixels/second
 
 pub const CHARACTER_SIZE: usize = BLOCK_SIZE * 2;
 pub const CHARACTER_MOVEMENT_SPEED: usize = BLOCK_SIZE * MAP_MOVEMENT_SPEED_IN_BLOCKS * 2; //camera speed in blocks/second
 pub const CHARACTER_JUMP_SPEED: usize = CHARACTER_MOVEMENT_SPEED / 30; // * 5 / 2;
+pub const CHARACTER_ROAMING_THRESHOLD: usize = CHUNK_WIDTH * BLOCK_SIZE;
 
 pub const DAY_DURATION_IN_SECONDS: usize = 4 * 60;
 pub const WORLD_WIDTH: usize = DAY_DURATION_IN_SECONDS * MAP_MOVEMENT_SPEED_IN_BLOCKS;
