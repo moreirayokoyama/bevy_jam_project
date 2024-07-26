@@ -46,13 +46,13 @@ struct Chunk {
     y_offset: f32,
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Debug)]
 enum Block {
     Air,
     Solid(SolidBlock),
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Debug)]
 enum SolidBlock {
     Surface,
     Stone,
@@ -105,11 +105,88 @@ fn startup(
 
 fn new_earth_block(
     x: usize,
+    x_in_world: usize,
     y: usize,
+    y_in_world: usize,
     atlas_layout_handle: Handle<TextureAtlasLayout>,
     tiles: &Tiles,
+    game_world: &GameWorld,
 ) -> (SpriteBundle, TextureAtlas) {
-    new_block_from_tilesheet(x, y, tiles.standard.clone(), atlas_layout_handle.clone(), 8)
+    let down_coord_y_in_world = if y_in_world == 0 { 0 } else { y_in_world - 1 };
+    let down_coord_x_in_world = if x_in_world == 0 { 0 } else { x_in_world - 1 };
+
+    let up_block = get_block(x_in_world, y_in_world + 1, game_world);
+    let right_block = get_block(x_in_world + 1, y_in_world, game_world);
+    let down_block = get_block(x_in_world, down_coord_y_in_world, game_world);
+    let left_block = get_block(down_coord_x_in_world, y_in_world, game_world);
+
+    let up_left_block = get_block(down_coord_x_in_world, y_in_world + 1, game_world);
+    let up_right_block = get_block(x_in_world + 1, y_in_world + 1, game_world);
+    let down_left_block = get_block(down_coord_x_in_world, down_coord_y_in_world, game_world);
+    let down_right_block = get_block(x_in_world + 1, down_coord_y_in_world, game_world);
+
+    let index = match (
+        up_left_block,
+        up_block,
+        up_right_block,
+        right_block,
+        down_right_block,
+        down_block,
+        down_left_block,
+        left_block,
+    ) {
+        (_, Block::Solid(_), _, Block::Solid(_), _, Block::Solid(_), _, Block::Air) => 14, // │
+        (_, Block::Solid(_), _, Block::Air, _, Block::Solid(_), _, Block::Solid(_)) => 10, // │
+        (
+            Block::Air,
+            Block::Solid(_),
+            Block::Solid(_),
+            Block::Solid(_),
+            Block::Solid(_),
+            Block::Solid(_),
+            Block::Solid(_),
+            Block::Solid(_),
+        ) => 12, // ┘
+        (
+            Block::Solid(_),
+            Block::Solid(_),
+            Block::Air,
+            Block::Solid(_),
+            Block::Solid(_),
+            Block::Solid(_),
+            Block::Solid(_),
+            Block::Solid(_),
+        ) => 11, // └
+        (
+            Block::Solid(_),
+            Block::Solid(_),
+            Block::Solid(_),
+            Block::Solid(_),
+            Block::Air,
+            Block::Solid(_),
+            Block::Solid(_),
+            Block::Solid(_),
+        ) => 4, // ┌
+        (
+            Block::Solid(_),
+            Block::Solid(_),
+            Block::Solid(_),
+            Block::Solid(_),
+            Block::Solid(_),
+            Block::Solid(_),
+            Block::Air,
+            Block::Solid(_),
+        ) => 5, // ┐
+        _ => 8,
+    };
+
+    new_block_from_tilesheet(
+        x,
+        y,
+        tiles.standard.clone(),
+        atlas_layout_handle.clone(),
+        index,
+    )
 }
 
 fn new_stone_block(x: usize, y: usize) -> SpriteBundle {
@@ -118,11 +195,35 @@ fn new_stone_block(x: usize, y: usize) -> SpriteBundle {
 
 fn new_surface_block(
     x: usize,
+    x_in_world: usize,
     y: usize,
+    y_in_world: usize,
     atlas_layout_handle: Handle<TextureAtlasLayout>,
     tiles: &Tiles,
+    game_world: &GameWorld,
 ) -> (SpriteBundle, TextureAtlas) {
-    new_block_from_tilesheet(x, y, tiles.standard.clone(), atlas_layout_handle.clone(), 1)
+    let up_block = get_block(x_in_world, y_in_world + 1, game_world);
+    let right_block = get_block(x_in_world + 1, y_in_world, game_world);
+    let down_coord_y_in_world = if y_in_world == 0 { 0 } else { y_in_world - 1 };
+    let down_block = get_block(x_in_world, down_coord_y_in_world, game_world);
+    let down_coord_x_in_world = if x_in_world == 0 { 0 } else { x_in_world - 1 };
+    let left_block = get_block(down_coord_x_in_world, y_in_world, game_world);
+
+    let index = match (up_block, right_block, down_block, left_block) {
+        (Block::Air, Block::Air, Block::Solid(_), Block::Solid(_)) => 3, // ┐
+        (Block::Solid(_), Block::Air, Block::Air, Block::Solid(_)) => 24, // ┘
+        (Block::Solid(_), Block::Solid(_), Block::Air, Block::Air) => 21, // └
+        (Block::Air, Block::Solid(_), Block::Solid(_), Block::Air) => 0, // ┌
+        _ => 1,
+    };
+
+    new_block_from_tilesheet(
+        x,
+        y,
+        tiles.standard.clone(),
+        atlas_layout_handle.clone(),
+        index,
+    )
 }
 
 fn new_block_from_tilesheet(
@@ -209,7 +310,15 @@ fn new_chunk(
                         Block::Air => {}
                         Block::Solid(SolidBlock::Earth) => {
                             parent.spawn((
-                                new_earth_block(col_x, col_y, atlas_layout_handle.clone(), &tiles),
+                                new_earth_block(
+                                    col_x,
+                                    x,
+                                    col_y,
+                                    y,
+                                    atlas_layout_handle.clone(),
+                                    &tiles,
+                                    &game_world,
+                                ),
                                 PIXEL_PERFECT_LAYERS,
                             ));
                         }
@@ -220,9 +329,12 @@ fn new_chunk(
                             parent.spawn((
                                 new_surface_block(
                                     col_x,
+                                    x,
                                     col_y,
+                                    y,
                                     atlas_layout_handle.clone(),
                                     &tiles,
+                                    &game_world,
                                 ),
                                 PIXEL_PERFECT_LAYERS,
                             ));
