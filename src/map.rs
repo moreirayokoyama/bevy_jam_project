@@ -11,24 +11,19 @@ use bevy::{
 use bevy_rapier2d::prelude::Collider;
 
 use crate::{
-    control::MapControlOffset, game_world::GameWorld, BLOCK_SIZE, CHUNKS_TO_LOAD, CHUNK_COUNT,
+    camera::InGameCamera, game_world::GameWorld, BLOCK_SIZE, CHUNKS_TO_LOAD, CHUNK_COUNT,
     CHUNK_INITIAL_OFFSET, CHUNK_WIDTH, PIXEL_PERFECT_LAYERS, WORLD_BOTTOM_OFFSET, WORLD_CENTER_COL,
     WORLD_HEIGHT, WORLD_WIDTH,
 };
-
-const MAX_OFFSET: f32 = ((CHUNKS_TO_LOAD * CHUNK_WIDTH * BLOCK_SIZE) / 2) as f32;
 
 pub struct MapPlugin;
 
 impl Plugin for MapPlugin {
     fn build(&self, app: &mut bevy::prelude::App) {
-        app.add_systems(Startup, (initialize, load_textures, startup).chain())
+        app.add_systems(Startup, (load_textures, startup).chain())
             .add_systems(Update, map_movement);
     }
 }
-
-#[derive(Resource)]
-pub struct CurrentChunkOffset(usize);
 
 #[derive(Resource)]
 struct Tiles {
@@ -40,10 +35,8 @@ struct Tiles {
 struct TilesAtlasLayout(Handle<TextureAtlasLayout>);
 
 #[derive(Component)]
-struct Chunk {
+pub struct Chunk {
     index: usize,
-    x_offset: f32,
-    y_offset: f32,
 }
 
 #[derive(PartialEq)]
@@ -57,10 +50,6 @@ enum SolidBlock {
     Surface,
     Stone,
     Earth,
-}
-
-fn initialize(mut commands: Commands) {
-    commands.insert_resource(CurrentChunkOffset(CHUNK_INITIAL_OFFSET));
 }
 
 fn load_textures(
@@ -79,7 +68,6 @@ fn load_textures(
 fn startup(
     mut commands: Commands,
     game_world: Res<GameWorld>,
-    current_chunk_offset: Res<CurrentChunkOffset>,
     atlas_layout: Res<TilesAtlasLayout>,
     tiles: Res<Tiles>,
 ) {
@@ -87,15 +75,13 @@ fn startup(
     let remaining_chunks_to_load = CHUNKS_TO_LOAD as i32 % 2;
 
     for i in -half_chunks_to_load..(half_chunks_to_load + remaining_chunks_to_load) {
-        let chunk_index = ((current_chunk_offset.0 as i32) + i) as usize;
+        let chunk_index = ((CHUNK_INITIAL_OFFSET as i32) + i) as usize;
         let x: f32 = (i * (CHUNK_WIDTH * BLOCK_SIZE) as i32) as f32;
-        let y: f32 = (WORLD_BOTTOM_OFFSET * BLOCK_SIZE as i32) as f32;
 
         new_chunk(
             chunk_index,
             &game_world,
             x,
-            y,
             &mut commands,
             &tiles,
             atlas_layout.0.clone(),
@@ -202,12 +188,12 @@ fn new_chunk(
     chunk_index: usize,
     game_world: &GameWorld,
     x: f32,
-    y: f32,
     commands: &mut Commands,
     tiles: &Tiles,
     atlas_layout_handle: Handle<TextureAtlasLayout>,
 ) {
     let start_x = CHUNK_WIDTH * chunk_index;
+    let y = (WORLD_BOTTOM_OFFSET * BLOCK_SIZE as i32) as f32;
     let start_y: usize = 0;
 
     commands
@@ -216,11 +202,7 @@ fn new_chunk(
                 transform: Transform::from_xyz(x, y, 2.),
                 ..default()
             },
-            Chunk {
-                index: chunk_index,
-                x_offset: x,
-                y_offset: y,
-            },
+            Chunk { index: chunk_index },
         ))
         .with_children(|parent| {
             if chunk_index == (WORLD_WIDTH / CHUNK_WIDTH / 2) {
@@ -316,42 +298,39 @@ fn new_chunk_polyline(game_world: &GameWorld, chunk_index: usize) -> Vec<Vec2> {
 }
 
 fn map_movement(
-    mut query: Query<(Entity, &mut Transform, &mut Chunk)>,
-    control_offset: Res<MapControlOffset>,
+    cam_query: Query<&InGameCamera>,
+    query: Query<(Entity, &Transform, &Chunk)>,
     mut commands: Commands,
     game_world: Res<GameWorld>,
-    mut current_chunk_offset: ResMut<CurrentChunkOffset>,
     tiles: Res<Tiles>,
     atlas_layout_handle: Res<TilesAtlasLayout>,
 ) {
-    for (entity, mut transform, mut chunk) in query.iter_mut() {
-        transform.translation.x -= control_offset.0;
-        transform.translation.y -= control_offset.1;
-        chunk.x_offset -= control_offset.0;
-        chunk.y_offset -= control_offset.1;
-
-        if (chunk.x_offset > MAX_OFFSET && control_offset.0 < 0.)
-            || (chunk.x_offset < -MAX_OFFSET && control_offset.0 > 0.)
+    let camera = cam_query.single();
+    for (entity, transform, chunk) in query.iter() {
+        let camera_offset = camera.translation.x - transform.translation.x;
+        if (camera.is_going_right
+            && camera_offset > camera.chunk_unload_after
+            && transform.translation.x < camera.translation.x)
+            || (!camera.is_going_right
+                && camera_offset < -camera.chunk_unload_after
+                && transform.translation.x > camera.translation.x)
         {
-            let (new_chunk_offset, next_index) = if chunk.x_offset > 0. {
-                current_chunk_offset.0 -= 1;
+            let (new_chunk_offset, next_index) = if camera.is_going_right {
                 (
-                    chunk.x_offset - MAX_OFFSET * 2.,
-                    chunk.index as i32 - CHUNKS_TO_LOAD as i32,
-                )
-            } else {
-                current_chunk_offset.0 += 1;
-                (
-                    chunk.x_offset + MAX_OFFSET * 2.,
+                    transform.translation.x + (CHUNKS_TO_LOAD * CHUNK_WIDTH * BLOCK_SIZE) as f32,
                     chunk.index as i32 + CHUNKS_TO_LOAD as i32,
                 )
+            } else {
+                (
+                    transform.translation.x - (CHUNKS_TO_LOAD * CHUNK_WIDTH * BLOCK_SIZE) as f32,
+                    chunk.index as i32 - CHUNKS_TO_LOAD as i32,
+                )
             };
-            let chunk_index = next_index as usize % CHUNK_COUNT;
+            let chunk_index = ((next_index + CHUNK_COUNT as i32) % CHUNK_COUNT as i32) as usize;
             new_chunk(
                 chunk_index,
                 &game_world,
                 new_chunk_offset,
-                chunk.y_offset,
                 &mut commands,
                 &tiles,
                 atlas_layout_handle.0.clone(),

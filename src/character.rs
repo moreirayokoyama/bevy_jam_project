@@ -2,7 +2,7 @@ use bevy::{
     app::{Plugin, Startup, Update},
     asset::{AssetServer, Assets},
     math::{UVec2, Vec2},
-    prelude::{default, Commands, Component, Deref, DerefMut, Local, Query, Res, ResMut, With},
+    prelude::{default, Commands, Component, Deref, DerefMut, Local, Query, Res, ResMut},
     sprite::{Sprite, SpriteBundle, TextureAtlas, TextureAtlasLayout},
     time::{Time, Timer, TimerMode},
     transform::components::Transform,
@@ -10,9 +10,9 @@ use bevy::{
 use bevy_rapier2d::prelude::*;
 
 use crate::{
-    control::{CharacterControlInput, MapControlOffset},
-    GameWorld, BLOCK_SIZE, CHARACTER_JUMP_SPEED, CHARACTER_MOVEMENT_SPEED, CHARACTER_SIZE, GRAVITY,
-    PIXEL_PERFECT_LAYERS, WORLD_BOTTOM_OFFSET_IN_PIXELS, WORLD_CENTER_COL,
+    control::CharacterControlInput, GameWorld, BLOCK_SIZE, CHARACTER_JUMP_SPEED,
+    CHARACTER_MOVEMENT_SPEED, CHARACTER_SIZE, GRAVITY, PIXEL_PERFECT_LAYERS,
+    WORLD_BOTTOM_OFFSET_IN_PIXELS, WORLD_CENTER_COL,
 };
 
 const GROUND_TIMER: f32 = 0.5;
@@ -52,7 +52,7 @@ pub struct CharacterPlugin;
 impl Plugin for CharacterPlugin {
     fn build(&self, app: &mut bevy::prelude::App) {
         app.add_systems(Startup, startup)
-            .add_systems(Update, (map_following, movement, animate));
+            .add_systems(Update, (movement, animate));
     }
 }
 
@@ -115,15 +115,6 @@ fn startup(
         AnimationTimer(Timer::from_seconds(0.1, TimerMode::Repeating)),
         PIXEL_PERFECT_LAYERS,
     ));
-}
-
-fn map_following(
-    mut query: Query<&mut Transform, With<Character>>,
-    control_offset: Res<MapControlOffset>,
-) {
-    let mut transform = query.single_mut();
-    transform.translation.x -= control_offset.0;
-    transform.translation.y -= control_offset.1;
 }
 
 fn movement(

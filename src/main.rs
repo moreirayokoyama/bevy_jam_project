@@ -5,10 +5,7 @@
 #![allow(clippy::too_many_arguments, clippy::type_complexity)]
 
 //TODO: Ponderar sobre tamanho do bloco, tamanho do chunk, tamanho do mundo
-//TODO: Levar a velocidade do movimento do mapa para o módulo map, e remover do módulo control
 //TODO: Todo o sistema de coordenadas seja i32 começando em zero (somente valores positivos)
-
-//NOTE: asset do player (https://opengameart.org/content/pixel-character-0)
 
 /**
  *
@@ -54,10 +51,7 @@ pub const CHUNK_WIDTH: usize = 16; //chunk width in blocks
 pub const CHUNK_COUNT: usize = WORLD_WIDTH / CHUNK_WIDTH;
 pub const CHUNK_INITIAL_OFFSET: usize = CHUNK_COUNT / 2;
 
-pub const CHUNKS_IN_CANVAS: usize = CANVAS_WIDTH / (CHUNK_WIDTH * BLOCK_SIZE);
-//How many more chunks to be loaded besides the amount enough to fill the canvas
-pub const CHUNKS_LOAD_THRESHOLD: usize = 4;
-pub const CHUNKS_TO_LOAD: usize = CHUNKS_IN_CANVAS + CHUNKS_LOAD_THRESHOLD;
+pub const CHUNKS_TO_LOAD: usize = 16;
 
 pub const MAP_MOVEMENT_SPEED_IN_BLOCKS: usize = 4; //camera speed in blocks/second
 pub const MAP_MOVEMENT_SPEED: usize = BLOCK_SIZE * MAP_MOVEMENT_SPEED_IN_BLOCKS; //camera speed in pixels/second

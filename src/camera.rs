@@ -1,7 +1,11 @@
 use bevy::{
     app::{Plugin, Startup, Update},
     asset::Assets,
-    prelude::{default, Camera2dBundle, Commands, Component, EventReader, Query, ResMut, With},
+    math::Vec3,
+    prelude::{
+        default, Camera2dBundle, Commands, Component, EventReader, Query, ResMut, Transform, With,
+        Without,
+    },
     render::{
         camera::{Camera, OrthographicProjection, RenderTarget},
         render_resource::{
@@ -14,7 +18,11 @@ use bevy::{
     window::WindowResized,
 };
 
-use crate::{CANVAS_HEIGHT, CANVAS_WIDTH, HIGH_RES_LAYERS, PIXEL_PERFECT_LAYERS};
+use crate::{
+    character::Character, map::Chunk, BLOCK_SIZE, CANVAS_HEIGHT, CANVAS_WIDTH,
+    CHARACTER_MOVEMENT_SPEED, CHUNKS_TO_LOAD, CHUNK_WIDTH, HIGH_RES_LAYERS, MAP_MOVEMENT_SPEED,
+    PIXEL_PERFECT_LAYERS,
+};
 
 #[derive(Component)]
 struct OuterCamera;
@@ -23,7 +31,11 @@ struct OuterCamera;
 struct Canvas;
 
 #[derive(Component)]
-struct InGameCamera;
+pub struct InGameCamera {
+    pub is_going_right: bool,
+    pub translation: Vec3,
+    pub chunk_unload_after: f32,
+}
 
 pub struct CameraPlugin;
 
@@ -31,7 +43,7 @@ impl Plugin for CameraPlugin {
     fn build(&self, app: &mut bevy::prelude::App) {
         app.insert_resource(Msaa::Off)
             .add_systems(Startup, startup)
-            .add_systems(Update, fit_canvas);
+            .add_systems(Update, (fit_canvas, move_camera));
     }
 }
 
@@ -75,7 +87,11 @@ fn startup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
             },
             ..default()
         },
-        InGameCamera,
+        InGameCamera {
+            is_going_right: false,
+            translation: Vec3::ZERO,
+            chunk_unload_after: (((CHUNKS_TO_LOAD / 2) * CHUNK_WIDTH * BLOCK_SIZE) as f32),
+        },
         PIXEL_PERFECT_LAYERS,
     ));
 
@@ -103,4 +119,26 @@ fn fit_canvas(
         let mut projection = projections.single_mut();
         projection.scale = 1. / h_scale.min(v_scale).round();
     }
+}
+
+fn move_camera(
+    mut cam_query: Query<
+        (
+            &mut Transform,
+            &mut OrthographicProjection,
+            &mut InGameCamera,
+        ),
+        (Without<Character>, Without<Chunk>),
+    >,
+    char_query: Query<&Transform, (With<Character>, Without<InGameCamera>)>,
+) {
+    let (mut transform, mut projection, mut camera) = cam_query.single_mut();
+    let char = char_query.single();
+    let direction = if camera.is_going_right { 1. } else { -1. };
+    let x_offset = direction
+        * MAP_MOVEMENT_SPEED as f32
+        * (projection.scale / ((CHARACTER_MOVEMENT_SPEED as f32) * 2.));
+    transform.translation.x += x_offset;
+    transform.translation.y = char.translation.y;
+    camera.translation = transform.translation.clone();
 }
