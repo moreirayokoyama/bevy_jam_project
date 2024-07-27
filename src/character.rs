@@ -2,7 +2,8 @@ use bevy::{
     app::{Plugin, Startup, Update},
     asset::{AssetServer, Assets},
     math::{UVec2, Vec2},
-    prelude::{default, Commands, Component, Deref, DerefMut, Local, Query, Res, ResMut},
+    prelude::*,
+    reflect::Reflect,
     sprite::{Sprite, SpriteBundle, TextureAtlas, TextureAtlasLayout},
     time::{Time, Timer, TimerMode},
     transform::components::Transform,
@@ -47,11 +48,31 @@ pub struct Character {
     state: CharacterState,
 }
 
+#[derive(Component, Reflect)]
+pub struct CoinPouch(pub u64);
+
+#[derive(Component, Reflect)]
+pub struct HealthPoints {
+    pub max_full_hearts: u8,
+    pub current: u8,
+}
+
+impl HealthPoints {
+    fn full(hearts: u8) -> Self {
+        HealthPoints {
+            max_full_hearts: hearts,
+            current: hearts * 2,
+        }
+    }
+}
+
 pub struct CharacterPlugin;
 
 impl Plugin for CharacterPlugin {
     fn build(&self, app: &mut bevy::prelude::App) {
-        app.add_systems(Startup, startup)
+        app.register_type::<CoinPouch>()
+            .register_type::<HealthPoints>()
+            .add_systems(Startup, startup)
             .add_systems(Update, (movement, animate));
     }
 }
@@ -65,6 +86,7 @@ fn startup(
     let atlas_layout = TextureAtlasLayout::from_grid(UVec2::new(16, 16), 8, 5, None, None);
     let atlas_layout_handle = texture_atlases.add(atlas_layout);
     let texture = asset_server.load("bgp_catdev/player_and_ui/Basic_Player.png");
+
     commands.spawn((
         Character {
             movement_speed: CHARACTER_MOVEMENT_SPEED as f32,
@@ -113,6 +135,8 @@ fn startup(
         },
         //LockedAxes::ROTATION_LOCKED,
         AnimationTimer(Timer::from_seconds(0.1, TimerMode::Repeating)),
+        CoinPouch(50),
+        HealthPoints::full(5),
         PIXEL_PERFECT_LAYERS,
     ));
 }
