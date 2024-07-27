@@ -118,6 +118,7 @@ fn generate_noise_map() -> NoiseMap {
         .set_y_bounds(-bounds, bounds)
         .build();
 
+    #[cfg(not(target_arch = "wasm32"))]
     utils::write_example_to_file(&r, "world.png");
     r
 }
