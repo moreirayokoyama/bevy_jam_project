@@ -35,6 +35,7 @@ use game::GamePlugins;
 use game_world::GameWorld;
 use noise::{utils::*, Fbm, Worley};
 
+pub const BACKGROUND_LAYERS: RenderLayers = RenderLayers::layer(0);
 pub const PIXEL_PERFECT_LAYERS: RenderLayers = RenderLayers::layer(0);
 pub const HIGH_RES_LAYERS: RenderLayers = RenderLayers::layer(1);
 

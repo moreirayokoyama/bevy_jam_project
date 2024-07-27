@@ -2,11 +2,11 @@ use std::default;
 
 use bevy::{
     app::{Plugin, Startup, Update},
-    asset::Assets,
+    asset::{AssetServer, Assets, Handle},
     input::mouse::{MouseScrollUnit, MouseWheel},
     math::Vec3,
     prelude::{
-        default, Camera2dBundle, Commands, Component, EventReader, IntoSystemConfigs, Query,
+        default, Camera2dBundle, Commands, Component, EventReader, IntoSystemConfigs, Query, Res,
         ResMut, Transform, With, Without,
     },
     render::{
@@ -18,13 +18,14 @@ use bevy::{
         view::Msaa,
     },
     sprite::SpriteBundle,
+    ui::BackgroundColor,
     window::WindowResized,
 };
 
 use crate::{
-    character::Character, map::Chunk, BLOCK_SIZE, CAMERA_REGULAR_SPEED, CANVAS_HEIGHT,
-    CANVAS_WIDTH, CHARACTER_MOVEMENT_SPEED, CHARACTER_ROAMING_THRESHOLD, CHUNKS_TO_LOAD,
-    CHUNK_WIDTH, HIGH_RES_LAYERS, PIXEL_PERFECT_LAYERS,
+    character::Character, map::Chunk, BACKGROUND_LAYERS, BLOCK_SIZE, CAMERA_REGULAR_SPEED,
+    CANVAS_HEIGHT, CANVAS_WIDTH, CHARACTER_MOVEMENT_SPEED, CHARACTER_ROAMING_THRESHOLD,
+    CHUNKS_TO_LOAD, CHUNK_WIDTH, HIGH_RES_LAYERS, PIXEL_PERFECT_LAYERS,
 };
 
 #[derive(Component)]
@@ -32,6 +33,9 @@ struct OuterCamera;
 
 #[derive(Component)]
 struct Canvas;
+
+#[derive(Component)]
+struct Background;
 
 #[derive(Component)]
 pub struct InGameCamera {
@@ -64,7 +68,11 @@ impl Plugin for CameraPlugin {
     }
 }
 
-fn startup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
+fn startup(
+    mut commands: Commands,
+    mut images: ResMut<Assets<Image>>,
+    asset_server: Res<AssetServer>,
+) {
     let canvas_size = Extent3d {
         width: CANVAS_WIDTH as u32,
         height: CANVAS_HEIGHT as u32,
@@ -91,7 +99,22 @@ fn startup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
     // fill image.data with zeroes
     canvas.resize(canvas_size);
 
+    let mut bg_canvas = canvas.clone();
+
     let image_handle = images.add(canvas);
+    let bg_handle = images.add(bg_canvas);
+
+    commands.spawn((
+        Camera2dBundle {
+            camera: Camera {
+                order: -2,
+                target: RenderTarget::Image(bg_handle),
+                ..default()
+            },
+            ..default()
+        },
+        BACKGROUND_LAYERS,
+    ));
 
     // this camera renders whatever is on `PIXEL_PERFECT_LAYERS` to the canvas
     commands.spawn((
@@ -116,6 +139,19 @@ fn startup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
             zoom_min_max: (0.4, 1.5),
         },
         PIXEL_PERFECT_LAYERS,
+    ));
+
+    let bg_image: Handle<Image> = asset_server.load("bgp_catdev/BackGrounds/Basic_BackGround.png");
+
+    commands.spawn((
+        SpriteBundle {
+            texture: bg_image,
+            transform: Transform::from_scale(Vec3::new(6., 5.25, 0.0)),
+            ..default()
+        },
+        Canvas,
+        Background,
+        BACKGROUND_LAYERS,
     ));
 
     commands.spawn((
@@ -154,11 +190,17 @@ fn move_camera(
         (Without<Character>, Without<Chunk>),
     >,
     char_query: Query<&Transform, (With<Character>, Without<InGameCamera>)>,
+    mut bg_query: Query<
+        &mut Transform,
+        (With<Background>, Without<InGameCamera>, Without<Character>),
+    >,
     mut evr_scroll: EventReader<MouseWheel>,
 ) {
     let (mut transform, mut projection, mut camera) = cam_query.single_mut();
 
     let char = char_query.single();
+    let mut bg = bg_query.single_mut();
+
     if camera.state == CameraState::Waiting {
         let char_offset = char.translation.x.abs();
         if char_offset > camera.char_roaming_threshold {
@@ -193,4 +235,6 @@ fn move_camera(
     transform.translation.x += x_offset;
     transform.translation.y = char.translation.y;
     camera.translation = transform.translation.clone();
+
+    bg.translation = transform.translation.clone();
 }
