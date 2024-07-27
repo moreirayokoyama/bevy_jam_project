@@ -20,6 +20,7 @@ mod game;
 mod game_world;
 mod map;
 mod physics;
+mod ui;
 mod utils;
 
 use bevy::asset::AssetMetaCheck;
