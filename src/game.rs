@@ -1,20 +1,35 @@
-use bevy::app::{PluginGroup, PluginGroupBuilder};
+use bevy::{
+    app::{Plugin, PluginGroup, PluginGroupBuilder, Startup},
+    prelude::{Commands, Res, Resource},
+};
 
 use crate::{
     camera::CameraPlugin, character::CharacterPlugin, control::ControlPlugin, map::MapPlugin,
-    ui::UIPlugin,
+    pickables::PickablesPlugin, ui::UIPlugin,
 };
 
-pub struct GamePlugins;
+pub struct GamePlugin;
 
-impl PluginGroup for GamePlugins {
+impl Plugin for GamePlugin {
+    fn build(&self, app: &mut bevy::prelude::App) {}
+}
+
+pub struct GamePluginGroupBuilder;
+
+impl PluginGroup for GamePluginGroupBuilder {
     fn build(self) -> bevy::app::PluginGroupBuilder {
         PluginGroupBuilder::start::<Self>()
+            .add(GamePlugin)
             .add(MapPlugin)
             .add(CameraPlugin)
             .add(ControlPlugin)
             .add(UIPlugin)
-            //.add(PhysicsPlugin)
             .add_after::<MapPlugin, CharacterPlugin>(CharacterPlugin)
+            .add_after::<GamePlugin, PickablesPlugin>(PickablesPlugin)
     }
 }
+
+#[derive(Resource)]
+pub struct DayCount(pub i32);
+
+fn startup(mut commands: Commands, day_count: Res<DayCount>) {}

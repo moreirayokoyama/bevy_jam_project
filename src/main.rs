@@ -7,6 +7,12 @@
 //TODO: Ponderar sobre tamanho do bloco, tamanho do chunk, tamanho do mundo
 //TODO: Todo o sistema de coordenadas seja i32 começando em zero (somente valores positivos)
 
+//TODO: Dar créditos
+/*
+bgp_catdev: https://catdev-pixelarts.itch.io/basic-platform-pixel-art-pack
+purple-valley-icon-set: https://opengameart.org/content/purple-valley-icon-set
+ */
+
 /**
  *
  * 20:26BigardiDEV: em resumo é um AABB com um for loop da posição antiga pra próxima posição pra evitar de passar por colisores quando tiver rapido
@@ -19,7 +25,7 @@ mod control;
 mod game;
 mod game_world;
 mod map;
-mod physics;
+mod pickables;
 mod ui;
 mod utils;
 
@@ -27,11 +33,12 @@ use bevy::asset::AssetMetaCheck;
 use bevy::prelude::*;
 use bevy::render::view::RenderLayers;
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
+use bevy_rand::prelude::*;
 use bevy_rapier2d::{
     plugin::{NoUserData, RapierPhysicsPlugin},
     render::RapierDebugRenderPlugin,
 };
-use game::GamePlugins;
+use game::{DayCount, GamePluginGroupBuilder};
 
 use game_world::GameWorld;
 use noise::{utils::*, Fbm, Worley};
@@ -81,6 +88,8 @@ fn main() {
 
     App::new()
         .insert_resource(GameWorld::new(noise_map, surface_height))
+        .insert_resource(DayCount(1))
+        .add_plugins(EntropyPlugin::<WyRand>::with_seed((0 as u64).to_ne_bytes()))
         .add_plugins((
             DefaultPlugins
                 .set(AssetPlugin {
@@ -99,7 +108,7 @@ fn main() {
                     }),
                     ..default()
                 }),
-            GamePlugins,
+            GamePluginGroupBuilder,
         ))
         //bevy_rapier2d
         .add_plugins(RapierPhysicsPlugin::<NoUserData>::pixels_per_meter(20.0))

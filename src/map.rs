@@ -36,7 +36,12 @@ struct TilesAtlasLayout(Handle<TextureAtlasLayout>);
 
 #[derive(Component)]
 pub struct Chunk {
-    index: usize,
+    pub index: usize,
+}
+
+#[derive(Event)]
+pub struct NewChunkEvent {
+    pub chunk: Entity,
 }
 
 #[derive(PartialEq)]
@@ -196,13 +201,14 @@ fn new_chunk(
     let y = (WORLD_BOTTOM_OFFSET * BLOCK_SIZE as i32) as f32;
     let start_y: usize = 0;
 
-    commands
+    let chunk = Chunk { index: chunk_index };
+    let chunk_entity = commands
         .spawn((
             SpatialBundle {
                 transform: Transform::from_xyz(x, y, 2.),
                 ..default()
             },
-            Chunk { index: chunk_index },
+            chunk,
         ))
         .with_children(|parent| {
             if chunk_index == (WORLD_WIDTH / CHUNK_WIDTH / 2) {
@@ -262,7 +268,11 @@ fn new_chunk(
                 },
                 Collider::polyline(new_chunk_polyline(game_world, chunk_index), Option::None),
             ));
-        });
+        })
+        .id();
+    commands.trigger(NewChunkEvent {
+        chunk: chunk_entity,
+    });
 }
 
 fn new_chunk_polyline(game_world: &GameWorld, chunk_index: usize) -> Vec<Vec2> {
