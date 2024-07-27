@@ -3,6 +3,7 @@ use std::default;
 use bevy::{
     app::{Plugin, Startup, Update},
     asset::Assets,
+    input::mouse::{MouseScrollUnit, MouseWheel},
     math::Vec3,
     prelude::{
         default, Camera2dBundle, Commands, Component, EventReader, IntoSystemConfigs, Query,
@@ -41,6 +42,8 @@ pub struct InGameCamera {
     pub char_roaming_threshold: f32,
     pub catching_up: f32,
     pub speed: f32,
+    pub zoom_step: f32,
+    pub zoom_min_max: (f32, f32),
 }
 
 #[derive(PartialEq, Default)]
@@ -109,6 +112,8 @@ fn startup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
             char_roaming_threshold: CHARACTER_ROAMING_THRESHOLD as f32,
             catching_up: 0.,
             speed: 0.,
+            zoom_step: -0.1,
+            zoom_min_max: (0.4, 1.5),
         },
         PIXEL_PERFECT_LAYERS,
     ));
@@ -149,8 +154,10 @@ fn move_camera(
         (Without<Character>, Without<Chunk>),
     >,
     char_query: Query<&Transform, (With<Character>, Without<InGameCamera>)>,
+    mut evr_scroll: EventReader<MouseWheel>,
 ) {
     let (mut transform, mut projection, mut camera) = cam_query.single_mut();
+
     let char = char_query.single();
     if camera.state == CameraState::Waiting {
         let char_offset = char.translation.x.abs();
@@ -170,6 +177,13 @@ fn move_camera(
             camera.state = CameraState::Moving;
         }
     } else {
+        for ev in evr_scroll.read() {
+            projection.scale += (ev.y * camera.zoom_step);
+            projection.scale = projection
+                .scale
+                .clamp(camera.zoom_min_max.0, camera.zoom_min_max.1);
+        }
+
         camera.speed = CAMERA_REGULAR_SPEED as f32
             * (projection.scale / ((CHARACTER_MOVEMENT_SPEED as f32) * 2.));
     }
