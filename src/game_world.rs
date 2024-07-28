@@ -1,6 +1,5 @@
 use bevy::prelude::*;
 use noise::utils::NoiseMap;
-use rand::distributions::Standard;
 use rand::prelude::*;
 
 use crate::{BLOCK_SIZE, WORLD_WIDTH};

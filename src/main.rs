@@ -112,7 +112,7 @@ fn main() {
         ))
         //bevy_rapier2d
         .add_plugins(RapierPhysicsPlugin::<NoUserData>::pixels_per_meter(20.0))
-        //.add_plugins(RapierDebugRenderPlugin::default())
+        .add_plugins(RapierDebugRenderPlugin::default())
         //beby_inspector_egui
         .add_plugins(WorldInspectorPlugin::new())
         .run();

@@ -11,8 +11,8 @@ use bevy::{
 use bevy_rapier2d::prelude::*;
 
 use crate::{
-    control::CharacterControlInput, GameWorld, BLOCK_SIZE, CHARACTER_JUMP_SPEED,
-    CHARACTER_MOVEMENT_SPEED, CHARACTER_SIZE, GRAVITY, PIXEL_PERFECT_LAYERS,
+    control::CharacterControlInput, pickables::PlacedPickable, GameWorld, BLOCK_SIZE,
+    CHARACTER_JUMP_SPEED, CHARACTER_MOVEMENT_SPEED, CHARACTER_SIZE, GRAVITY, PIXEL_PERFECT_LAYERS,
     WORLD_BOTTOM_OFFSET_IN_PIXELS, WORLD_CENTER_COL,
 };
 
@@ -73,7 +73,7 @@ impl Plugin for CharacterPlugin {
         app.register_type::<CoinPouch>()
             .register_type::<HealthPoints>()
             .add_systems(Startup, startup)
-            .add_systems(Update, (movement, animate));
+            .add_systems(Update, (movement, animate, handle_collision));
     }
 }
 
@@ -116,12 +116,14 @@ fn startup(
         },
         RigidBody::KinematicPositionBased,
         Collider::capsule_y((CHARACTER_SIZE / 16) as f32, (CHARACTER_SIZE / 2) as f32),
+        ActiveEvents::COLLISION_EVENTS,
         KinematicCharacterController {
             custom_shape: Option::Some((
                 Collider::cuboid((CHARACTER_SIZE / 3) as f32, (CHARACTER_SIZE / 2) as f32),
                 Vec2::new(0., CHARACTER_SIZE as f32 * 0.04),
                 0.,
             )),
+            apply_impulse_to_dynamic_bodies: true,
             offset: CharacterLength::Absolute(0.1),
             autostep: Option::Some(CharacterAutostep {
                 max_height: CharacterLength::Relative(0.6),
@@ -265,4 +267,20 @@ fn animate(
             atlas.index + 1
         };
     };
+}
+
+fn handle_collision(
+    mut character_controller_outputs: Query<(&KinematicCharacterControllerOutput, &mut CoinPouch)>,
+    placed_pickables: Query<&PlacedPickable>,
+    mut commands: Commands,
+) {
+    if let Ok((controller_output, mut coin_pouch)) = character_controller_outputs.get_single_mut() {
+        for collision in &controller_output.collisions {
+            if let Ok(placed_pickable) = placed_pickables.get(collision.entity) {
+                coin_pouch.0 += placed_pickable.item_type.get_coins();
+                commands.entity(placed_pickable.entity).despawn();
+                commands.entity(collision.entity).despawn();
+            }
+        }
+    }
 }

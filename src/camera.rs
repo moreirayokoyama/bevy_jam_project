@@ -1,13 +1,11 @@
-use std::default;
-
 use bevy::{
     app::{Plugin, Startup, Update},
     asset::{AssetServer, Assets, Handle},
-    input::mouse::{MouseScrollUnit, MouseWheel},
+    input::mouse::MouseWheel,
     math::Vec3,
     prelude::{
-        default, Camera2dBundle, Commands, Component, EventReader, IntoSystemConfigs, Query, Res,
-        ResMut, Transform, With, Without,
+        default, Camera2dBundle, Commands, Component, EventReader, Query, Res, ResMut, Transform,
+        With, Without,
     },
     render::{
         camera::{Camera, OrthographicProjection, RenderTarget},
@@ -18,7 +16,6 @@ use bevy::{
         view::Msaa,
     },
     sprite::SpriteBundle,
-    ui::BackgroundColor,
     window::WindowResized,
 };
 
@@ -99,7 +96,7 @@ fn startup(
     // fill image.data with zeroes
     canvas.resize(canvas_size);
 
-    let mut bg_canvas = canvas.clone();
+    let bg_canvas = canvas.clone();
 
     let image_handle = images.add(canvas);
     let bg_handle = images.add(bg_canvas);
@@ -220,7 +217,7 @@ fn move_camera(
         }
     } else {
         for ev in evr_scroll.read() {
-            projection.scale += (ev.y * camera.zoom_step);
+            projection.scale += ev.y * camera.zoom_step;
             projection.scale = projection
                 .scale
                 .clamp(camera.zoom_min_max.0, camera.zoom_min_max.1);

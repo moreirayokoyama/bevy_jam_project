@@ -1,6 +1,6 @@
 use bevy::{
-    app::{Plugin, PluginGroup, PluginGroupBuilder, Startup},
-    prelude::{Commands, Res, Resource},
+    app::{Plugin, PluginGroup, PluginGroupBuilder},
+    prelude::Resource,
 };
 
 use crate::{
@@ -31,5 +31,3 @@ impl PluginGroup for GamePluginGroupBuilder {
 
 #[derive(Resource)]
 pub struct DayCount(pub i32);
-
-fn startup(mut commands: Commands, day_count: Res<DayCount>) {}
