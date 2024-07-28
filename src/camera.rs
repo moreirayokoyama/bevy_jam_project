@@ -1,11 +1,11 @@
 use bevy::{
     app::{Plugin, Startup, Update},
     asset::{AssetServer, Assets, Handle},
-    input::mouse::MouseWheel,
+    input::{mouse::MouseWheel, ButtonInput},
     math::Vec3,
     prelude::{
-        default, Camera2dBundle, Commands, Component, EventReader, Query, Res, ResMut, Transform,
-        With, Without,
+        default, Camera2dBundle, Commands, Component, EventReader, KeyCode, Query, Res, ResMut,
+        Transform, With, Without,
     },
     render::{
         camera::{Camera, OrthographicProjection, RenderTarget},
@@ -186,6 +186,7 @@ fn move_camera(
         ),
         (Without<Character>, Without<Chunk>),
     >,
+    keys: Res<ButtonInput<KeyCode>>,
     char_query: Query<&Transform, (With<Character>, Without<InGameCamera>)>,
     mut bg_query: Query<
         &mut Transform,
@@ -223,8 +224,14 @@ fn move_camera(
                 .clamp(camera.zoom_min_max.0, camera.zoom_min_max.1);
         }
 
-        camera.speed = CAMERA_REGULAR_SPEED as f32
-            * (projection.scale / ((CHARACTER_MOVEMENT_SPEED as f32) * 2.));
+        if keys.pressed(KeyCode::ShiftLeft) {
+            camera.speed = (CAMERA_REGULAR_SPEED as f32)
+                * 5.
+                * (projection.scale / ((CHARACTER_MOVEMENT_SPEED as f32) * 2.));
+        } else {
+            camera.speed = CAMERA_REGULAR_SPEED as f32
+                * (projection.scale / ((CHARACTER_MOVEMENT_SPEED as f32) * 2.));
+        }
     }
 
     let direction = if camera.is_going_right { 1. } else { -1. };
