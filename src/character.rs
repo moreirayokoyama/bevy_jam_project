@@ -11,9 +11,10 @@ use bevy::{
 use bevy_rapier2d::prelude::*;
 
 use crate::{
-    control::CharacterControlInput, pickables::PlacedPickable, GameWorld, BLOCK_SIZE,
-    CHARACTER_JUMP_SPEED, CHARACTER_MOVEMENT_SPEED, CHARACTER_SIZE, GRAVITY, PIXEL_PERFECT_LAYERS,
-    WORLD_BOTTOM_OFFSET_IN_PIXELS, WORLD_CENTER_COL,
+    control::CharacterControlInput,
+    pickables::{PlacedPickable, PlacedPickableCollected},
+    GameWorld, BLOCK_SIZE, CHARACTER_JUMP_SPEED, CHARACTER_MOVEMENT_SPEED, CHARACTER_SIZE, GRAVITY,
+    PIXEL_PERFECT_LAYERS, WORLD_BOTTOM_OFFSET_IN_PIXELS, WORLD_CENTER_COL,
 };
 
 const GROUND_TIMER: f32 = 0.5;
@@ -278,7 +279,9 @@ fn handle_collision(
         for collision in &controller_output.collisions {
             if let Ok(placed_pickable) = placed_pickables.get(collision.entity) {
                 coin_pouch.0 += placed_pickable.item_type.get_coins();
-                commands.entity(placed_pickable.entity).despawn();
+                commands.trigger(PlacedPickableCollected {
+                    entity: placed_pickable.entity,
+                });
                 commands.entity(collision.entity).despawn();
             }
         }

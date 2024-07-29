@@ -15,7 +15,8 @@ impl Plugin for PickablesPlugin {
     fn build(&self, app: &mut bevy::prelude::App) {
         app.observe(on_new_day)
             .observe(on_new_chunk)
-            .add_systems(Startup, (initialize, load_textures, startup).chain());
+            .observe(on_pickable_collected)
+            .add_systems(Startup, (load_textures, startup).chain());
     }
 }
 
@@ -64,25 +65,21 @@ impl Distribution<PickableItemType> for Standard {
     }
 }
 
-#[derive(Resource)]
-pub struct PickableCount(u8);
-
 #[derive(Component)]
 pub struct Pickable {
-    pub id: u8,
     pub item_type: PickableItemType,
     pub x: usize,
 }
 
 #[derive(Component)]
 pub struct PlacedPickable {
-    pub id: u8,
     pub entity: Entity,
     pub item_type: PickableItemType,
 }
 
-fn initialize(mut commands: Commands) {
-    commands.insert_resource(PickableCount(0));
+#[derive(Event)]
+pub struct PlacedPickableCollected {
+    pub entity: Entity,
 }
 
 fn load_textures(
@@ -95,13 +92,11 @@ fn load_textures(
     commands.insert_resource(Tiles(asset_server.load("purple-valley-icon-set/icons.png")));
 }
 
-fn startup(mut commands: Commands, game_world: Res<GameWorld>, mut counter: ResMut<PickableCount>) {
+fn startup(mut commands: Commands, game_world: Res<GameWorld>) {
     let mut rng = thread_rng();
     let pickables_count = rng.gen_range(8..64) as usize;
     for _ in 0..pickables_count {
-        counter.0 += 1;
         commands.spawn(Pickable {
-            id: counter.0,
             item_type: random(),
             x: game_world.get_random_x_block(),
         });
@@ -130,7 +125,6 @@ fn on_new_chunk(
         for (entity, item) in items {
             parent.spawn((
                 PlacedPickable {
-                    id: item.id,
                     entity,
                     item_type: item.item_type.clone(),
                 },
@@ -156,4 +150,16 @@ fn on_new_chunk(
             ));
         }
     });
+}
+
+fn on_pickable_collected(
+    trigger: Trigger<PlacedPickableCollected>,
+    query: Query<(Entity, &Pickable)>,
+    mut commands: Commands,
+) {
+    if let Ok((entity, _)) = query.get(trigger.event().entity) {
+        commands.entity(entity).despawn();
+    } else {
+        println!("Pickable not found: {:?}", trigger.event().entity);
+    }
 }
