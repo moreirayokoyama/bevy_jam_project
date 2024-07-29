@@ -22,7 +22,7 @@ use bevy::{
 use crate::{
     character::Character, map::Chunk, BACKGROUND_LAYERS, BLOCK_SIZE, CAMERA_REGULAR_SPEED,
     CANVAS_HEIGHT, CANVAS_WIDTH, CHARACTER_MOVEMENT_SPEED, CHARACTER_ROAMING_THRESHOLD,
-    CHUNKS_TO_LOAD, CHUNK_WIDTH, HIGH_RES_LAYERS, PIXEL_PERFECT_LAYERS,
+    CHUNKS_TO_LOAD, CHUNK_WIDTH, HIGH_RES_LAYERS, PIXEL_PERFECT_LAYERS, WORLD_WIDTH,
 };
 
 #[derive(Component)]
@@ -37,6 +37,7 @@ struct Background;
 #[derive(Component)]
 pub struct InGameCamera {
     pub is_going_right: bool,
+    pub whole_turn_at: f32,
     pub translation: Vec3,
     pub chunk_unload_after: f32,
     pub state: CameraState,
@@ -125,7 +126,8 @@ fn startup(
             ..default()
         },
         InGameCamera {
-            is_going_right: false,
+            is_going_right: true,
+            whole_turn_at: (WORLD_WIDTH * BLOCK_SIZE) as f32,
             translation: Vec3::ZERO,
             chunk_unload_after: (((CHUNKS_TO_LOAD / 2) * CHUNK_WIDTH * BLOCK_SIZE) as f32),
             state: CameraState::Waiting,
@@ -199,12 +201,33 @@ fn move_camera(
     let char = char_query.single();
     let mut bg = bg_query.single_mut();
 
+    for ev in evr_scroll.read() {
+        projection.scale += ev.y * camera.zoom_step;
+        projection.scale = projection
+            .scale
+            .clamp(camera.zoom_min_max.0, camera.zoom_min_max.1);
+    }
+
     if camera.state == CameraState::Waiting {
-        let char_offset = char.translation.x.abs();
-        if char_offset > camera.char_roaming_threshold {
-            camera.is_going_right = char.translation.x > 0.;
+        transform.translation.y = char.translation.y;
+        let char_offset = char.translation.x - transform.translation.x;
+
+        if char_offset.abs() > camera.char_roaming_threshold {
+            camera.is_going_right = char.translation.x > transform.translation.x;
+            camera.whole_turn_at = if camera.is_going_right {
+                transform.translation.x + (WORLD_WIDTH * BLOCK_SIZE) as f32
+            } else {
+                transform.translation.x - ((WORLD_WIDTH * BLOCK_SIZE) as f32)
+            };
             camera.state = CameraState::CatchingUp;
-            camera.catching_up = char_offset;
+            camera.catching_up = if (camera.is_going_right
+                && (transform.translation.x - char.translation.x < 0.))
+                || (!camera.is_going_right && (transform.translation.x - char.translation.x > 0.))
+            {
+                transform.translation.x - char.translation.x
+            } else {
+                transform.translation.x + char.translation.x
+            };
         }
         return;
     } else if camera.state == CameraState::CatchingUp {
@@ -217,13 +240,6 @@ fn move_camera(
             camera.state = CameraState::Moving;
         }
     } else {
-        for ev in evr_scroll.read() {
-            projection.scale += ev.y * camera.zoom_step;
-            projection.scale = projection
-                .scale
-                .clamp(camera.zoom_min_max.0, camera.zoom_min_max.1);
-        }
-
         if keys.pressed(KeyCode::ShiftLeft) {
             camera.speed = (CAMERA_REGULAR_SPEED as f32)
                 * 5.
@@ -237,6 +253,11 @@ fn move_camera(
     let direction = if camera.is_going_right { 1. } else { -1. };
     let x_offset = direction * camera.speed;
     transform.translation.x += x_offset;
+    if (camera.is_going_right && (transform.translation.x - camera.whole_turn_at >= 0.))
+        || (!camera.is_going_right && (transform.translation.x - camera.whole_turn_at <= 0.))
+    {
+        camera.state = CameraState::Waiting;
+    }
     transform.translation.y = char.translation.y;
     camera.translation = transform.translation.clone();
 
