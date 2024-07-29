@@ -22,6 +22,7 @@ purple-valley-icon-set: https://opengameart.org/content/purple-valley-icon-set
 mod camera;
 mod character;
 mod control;
+mod enemy;
 mod game;
 mod game_world;
 mod map;

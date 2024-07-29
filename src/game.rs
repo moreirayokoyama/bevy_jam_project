@@ -4,8 +4,8 @@ use bevy::{
 };
 
 use crate::{
-    camera::CameraPlugin, character::CharacterPlugin, control::ControlPlugin, map::MapPlugin,
-    pickables::PickablesPlugin, ui::UIPlugin,
+    camera::CameraPlugin, character::CharacterPlugin, control::ControlPlugin, enemy::EnemyPlugin,
+    map::MapPlugin, pickables::PickablesPlugin, ui::UIPlugin,
 };
 
 pub struct GamePlugin;
@@ -26,6 +26,7 @@ impl PluginGroup for GamePluginGroupBuilder {
             .add(UIPlugin)
             .add_after::<MapPlugin, CharacterPlugin>(CharacterPlugin)
             .add_after::<GamePlugin, PickablesPlugin>(PickablesPlugin)
+            .add_after::<MapPlugin, EnemyPlugin>(EnemyPlugin)
     }
 }
 
