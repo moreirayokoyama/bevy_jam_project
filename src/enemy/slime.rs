@@ -87,14 +87,7 @@ pub fn spawn_slime(
                 0.,
             )),
             offset: CharacterLength::Absolute(0.1),
-            autostep: Option::Some(CharacterAutostep {
-                max_height: CharacterLength::Relative(0.6),
-                min_width: CharacterLength::Relative(0.1),
-                ..default()
-            }),
-            slide: true,
             snap_to_ground: Option::Some(CharacterLength::Absolute(0.1)),
-            normal_nudge_factor: 0.1,
             ..default()
         },
         AnimationTimer(Timer::from_seconds(0.1, TimerMode::Repeating)),
@@ -117,71 +110,73 @@ pub fn slime_movement(
     mut vertical_movement: Local<f32>,
 ) {
     let delta_time = time.delta_seconds();
-    let (
+
+    for (
         mut enemy,
         mut direction,
         mut enemy_controller,
         enemy_controller_output,
         mut sprite,
         mut atlas,
-    ) = query.single_mut();
+    ) in query.iter_mut()
+    {
+        let x = direction.x;
 
-    let x = direction.x;
+        let mut move_delta = Vec2::new(x, 0.0);
 
-    let mut move_delta = Vec2::new(x, 0.0);
+        if move_delta != Vec2::ZERO {
+            move_delta /= move_delta.length();
+        }
 
-    if move_delta != Vec2::ZERO {
-        move_delta /= move_delta.length();
-    }
+        if enemy_controller_output.map(|o| o.grounded).unwrap_or(false) {
+            *vertical_movement = 0.0;
+        }
 
-    if enemy_controller_output.map(|o| o.grounded).unwrap_or(false) {
-        *vertical_movement = 0.0;
-    }
+        *vertical_movement += GRAVITY * delta_time * enemy_controller.custom_mass.unwrap_or(1.0);
 
-    *vertical_movement += GRAVITY * delta_time * enemy_controller.custom_mass.unwrap_or(1.0);
+        move_delta.y = *vertical_movement;
 
-    move_delta.y = *vertical_movement;
+        let next_state = if *vertical_movement < -0.4 {
+            SlimeState::Falling
+        } else if move_delta.x.abs() > f32::EPSILON {
+            SlimeState::Walking
+        } else {
+            SlimeState::Idle
+        };
 
-    let next_state = if *vertical_movement < -0.4 {
-        SlimeState::Falling
-    } else if move_delta.x.abs() > f32::EPSILON {
-        SlimeState::Walking
-    } else {
-        SlimeState::Idle
-    };
+        if next_state != enemy.state {
+            enemy.state = next_state;
+            atlas.index = enemy.state.get_range().0;
+        }
 
-    if next_state != enemy.state {
-        enemy.state = next_state;
-        atlas.index = enemy.state.get_range().0;
-    }
+        if x != 0. {
+            enemy.looking_left = x < 0.;
+        }
 
-    if x != 0. {
-        enemy.looking_left = x < 0.;
-    }
+        sprite.flip_x = enemy.looking_left;
 
-    sprite.flip_x = enemy.looking_left;
+        if let Some(o) = enemy_controller_output {
+            for c in o.collisions.iter() {
+                if let Some(d) = c.hit.details {
+                    if (enemy.looking_left && d.normal1.x > 0.5)
+                        || (!enemy.looking_left && d.normal1.x < -0.5)
+                    {
+                        move_delta.y /= 20.;
+                    }
 
-    if let Some(o) = enemy_controller_output {
-        for c in o.collisions.iter() {
-            if let Some(d) = c.hit.details {
-                if (enemy.looking_left && d.normal1.x > 0.5)
-                    || (!enemy.looking_left && d.normal1.x < -0.5)
-                {
-                    move_delta.y /= 20.;
-                }
+                    if enemy.looking_left && d.normal1.x > 0.5 {
+                        direction.x = 1.0;
+                    }
 
-                if enemy.looking_left && d.normal1.x > 0.5 {
-                    direction.x = 1.0;
-                }
-
-                if !enemy.looking_left && d.normal1.x < -0.5 {
-                    direction.x = -1.0;
+                    if !enemy.looking_left && d.normal1.x < -0.5 {
+                        direction.x = -1.0;
+                    }
                 }
             }
         }
-    }
 
-    enemy_controller.translation = Some(move_delta * enemy.movement_speed as f32 * delta_time);
+        enemy_controller.translation = Some(move_delta * enemy.movement_speed as f32 * delta_time);
+    }
 }
 
 pub fn animate_slime(
